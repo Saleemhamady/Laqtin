@@ -1,0 +1,15 @@
+<% if (q.explanation_file) { const src = '/uploads/' + q.explanation_file; %>
+  <div class="attach">
+    <% if (/\.(mp4|webm|mov|m4v)$/i.test(q.explanation_file)) { %><video src="<%= src %>" controls playsinline preload="metadata"></video>
+    <% } else if (/\.html?$/i.test(q.explanation_file)) { %><iframe src="<%= src %>" sandbox="allow-scripts allow-popups allow-forms" title="Explanation" loading="lazy"></iframe>
+    <% } else if (/\.(png|jpe?g|gif|webp)$/i.test(q.explanation_file)) { %><img src="<%= src %>" alt="Explanation">
+    <% } else if (/\.(mp3|m4a)$/i.test(q.explanation_file)) { %><audio src="<%= src %>" controls style="width:100%"></audio>
+    <% } else { %><a class="btn secondary sm" href="<%= src %>" target="_blank" rel="noopener"><%- icon('file') %><%= q.explanation_file_name || 'Open explanation' %></a><% } %>
+  </div>
+<% } %>
+<% if (q.explanation_url) { const m = q.explanation_url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/); %>
+  <div class="attach">
+    <% if (m) { %><div class="player"><iframe src="https://www.youtube-nocookie.com/embed/<%= m[1] %>?rel=0" allowfullscreen loading="lazy" title="Explanation video"></iframe></div>
+    <% } else { %><a class="btn secondary sm" href="<%= q.explanation_url %>" target="_blank" rel="noopener"><%- icon('external') %>Open explanation</a><% } %>
+  </div>
+<% } %>

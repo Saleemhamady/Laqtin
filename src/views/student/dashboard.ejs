@@ -1,0 +1,30 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head"><div><h1>My learning</h1><p class="muted">Pick up where you left off — here or on WhatsApp.</p></div><a href="/courses" class="btn secondary"><%- icon('search') %>Find a course</a></div>
+  <% if (!enrollments.length) { %>
+    <div class="card"><div class="empty">
+      <div class="icon-ring"><%- icon('book') %></div>
+      <h3>No courses yet</h3>
+      <p>Enroll in a course and your first lesson will arrive on WhatsApp within a minute.</p>
+      <a href="/courses" class="btn primary">Browse courses</a>
+    </div></div>
+  <% } else { %>
+    <div class="grid cols-3">
+      <% enrollments.forEach(function (e) { const p = e.progress; %>
+        <a href="/learn/course/<%= e.course_id %>" class="card course-card">
+          <div class="cover" style="--c: <%= e.color %>"><span class="glyph"><%= initials(e.title) %></span><span class="meta"><span><%= p.done %>/<%= p.lessons.length %> lessons</span><% if (p.scorePct !== null) { %><span><%= p.scorePct %>% correct</span><% } %></span></div>
+          <div class="body">
+            <h3><%= e.title %></h3>
+            <p><%= e.teacher_name %></p>
+            <div class="progress" style="margin-bottom:14px"><span style="width:<%= p.pct %>%"></span></div>
+            <div class="foot">
+              <span class="badge <%= e.wa_state === 'done' ? 'green' : e.wa_state === 'error' ? 'red' : e.wa_state === 'awaiting_join' ? 'amber' : 'teal' %>"><%= WA_STATE_LABEL[e.wa_state] %></span>
+              <span><%= p.pct %>%</span>
+            </div>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

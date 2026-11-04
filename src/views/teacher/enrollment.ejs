@@ -1,0 +1,50 @@
+<%- include('../partials/head') %>
+<% const L = 'ABCDEFGHIJ'; %>
+<div class="container">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><a href="/teach">Teaching</a> <span>/</span> <a href="/teach/courses/<%= course.id %>?tab=students"><%= course.title %></a> <span>/</span></div>
+      <div class="row" style="gap:14px"><span class="avatar lg"><%= initials(student.name) %></span><div><h1 style="margin:0"><%= student.name %></h1><p class="muted small" style="margin:0"><%= student.email %><%= student.phone ? ' · ' + student.phone : '' %></p></div></div>
+    </div>
+    <div class="row">
+      <span class="badge <%= e.wa_state === 'done' ? 'green' : e.wa_state === 'error' ? 'red' : e.wa_state === 'awaiting_join' ? 'amber' : 'teal' %>"><%= WA_STATE_LABEL[e.wa_state] %></span>
+      <% if (e.wa_state === 'error' || e.wa_state === 'awaiting_join') { %>
+        <form method="post" action="/teach/enrollments/<%= e.id %>/retry"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn secondary sm"><%- icon('refresh') %>Retry WhatsApp</button></form>
+      <% } %>
+    </div>
+  </div>
+  <% if (e.wa_error) { %><div class="alert error"><%- icon('alert') %><span><%= e.wa_error %></span></div><% } %>
+
+  <div class="stat-row" style="margin-bottom:32px">
+    <div class="stat"><div class="v"><%= progress.pct %>%</div><div class="k">Complete</div></div>
+    <div class="stat"><div class="v"><%= progress.watched %>/<%= progress.lessons.length %></div><div class="k">Lessons watched</div></div>
+    <div class="stat"><div class="v"><%= progress.answered %>/<%= progress.totalQuestions %></div><div class="k">Answered</div></div>
+    <div class="stat"><div class="v"><%= progress.scorePct === null ? '—' : progress.scorePct + '%' %></div><div class="k">Correct</div></div>
+  </div>
+
+  <div class="split wide-side">
+    <div class="stack">
+      <% progress.lessons.forEach(function (r, i) { %>
+        <div class="card">
+          <div class="card-head">
+            <h3><span class="faint"><%= i + 1 %>.</span> <%= r.lesson.title %></h3>
+            <span class="small muted"><%= r.progress.watched_at ? 'Watched ' + (r.progress.watched_via === 'whatsapp' ? 'on WhatsApp' : 'on web') : 'Not watched' %><% if (r.questions.length) { %> · <%= r.correct %>/<%= r.questions.length %> correct<% } %></span>
+          </div>
+          <% if (r.questions.length) { %>
+            <ul class="list">
+              <% r.questions.forEach(function (q) { const a = r.answers.get(q.id); %>
+                <li>
+                  <span class="num <%= a && a.is_correct ? 'done' : '' %>" style="<%= a && !a.is_correct ? 'background:var(--danger);border-color:var(--danger);color:#fff' : '' %>"><%- a ? icon(a.is_correct ? 'check' : 'x') : '–' %></span>
+                  <div class="grow"><span class="title" style="white-space:normal"><%= q.prompt %></span>
+                    <span class="sub"><% if (a) { %>Answered <b><%= L[a.selected_index] %>. <%= q.options[a.selected_index] %></b> via <%= a.via %><% if (!a.is_correct) { %> · correct: <%= L[q.correct_index] %><% } %><% } else { %>Not answered<% } %></span></div>
+                </li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+    <aside class="sticky"><%- include('../partials/chat', { enrollmentId: e.id, chatTitle: course.title + ' · ' + student.name.split(' ')[0], interactive: false }) %></aside>
+  </div>
+</div>
+<%- include('../partials/foot') %>

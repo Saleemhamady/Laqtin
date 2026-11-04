@@ -1,0 +1,13 @@
+<%- include('partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <div><h1>Courses</h1><p class="muted">Video lessons with practice delivered on WhatsApp.</p></div>
+    <form method="get" action="/courses" style="min-width:280px"><label class="sr-only" for="q">Search</label><input id="q" type="search" name="q" value="<%= q %>" placeholder="Search courses or teachers"></form>
+  </div>
+  <% if (courses.length) { %>
+    <div class="grid cols-3"><% courses.forEach(function (c) { %><%- include('partials/course-card', { c }) %><% }) %></div>
+  <% } else { %>
+    <div class="card"><div class="empty"><div class="icon-ring"><%- icon('search') %></div><h3><%= q ? 'No matches' : 'No courses yet' %></h3><p><%= q ? 'Try a different search.' : 'Courses will show up here as soon as teachers publish them.' %></p></div></div>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

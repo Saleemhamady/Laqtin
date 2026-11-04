@@ -1,0 +1,21 @@
+<%- include('partials/head') %>
+<div class="container narrow">
+  <h1><%= title %></h1>
+  <p class="muted small">Last updated <%= new Date().toISOString().slice(0, 10) %></p>
+  <div class="card"><div class="card-body prose">
+    <% if (kind === 'privacy') { %>
+      <p><strong>What we collect.</strong> Your name, email address and WhatsApp number; if you sign in with Google, Microsoft or Facebook we receive your name, email and profile picture from that provider. We record which lessons you watch and how you answer practice questions.</p>
+      <p><strong>Why.</strong> To deliver your courses on WhatsApp and the portal, show your progress to you and your teacher, and keep the service secure.</p>
+      <p><strong>WhatsApp.</strong> When you enroll, the academy’s WhatsApp number creates a group (or chat) with you and sends lesson videos, polls and feedback. Messages and poll answers are stored so they can be shown in your portal.</p>
+      <p><strong>Sharing.</strong> Your teacher sees your progress and answers in their course. We do not sell your data.</p>
+      <p><strong>Your choices.</strong> You can update your details on your profile, leave the WhatsApp group at any time, or ask us to delete your account and data by contacting the academy.</p>
+    <% } else { %>
+      <p><strong>Using Laqtin.</strong> Keep your account details accurate and your password private. Don’t share course content you don’t own the rights to.</p>
+      <p><strong>Teachers</strong> are responsible for the content they upload and confirm they have the right to share it.</p>
+      <p><strong>WhatsApp delivery.</strong> By enrolling you agree to receive course messages on WhatsApp at the number you provided. Leave the group or change your number anytime.</p>
+      <p><strong>Availability.</strong> We work hard to keep the service running but can’t guarantee it will always be available.</p>
+    <% } %>
+    <p class="small muted">This is a starting template — have it reviewed for your jurisdiction before launch.</p>
+  </div></div>
+</div>
+<%- include('partials/foot') %>

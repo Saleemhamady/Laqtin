@@ -1,0 +1,52 @@
+<%- include('partials/head') %>
+<div class="container">
+  <section class="hero">
+    <div>
+      <div class="eyebrow"><%- icon('whatsapp', 'wa-ico') %> Learning that lives in WhatsApp</div>
+      <h1>Learn a little every day, <em>right in your chats.</em></h1>
+      <p class="lead">Short video lessons arrive in a WhatsApp group made just for you. Watch, answer a quick poll, get instant feedback — and your progress is saved on the portal.</p>
+      <div class="row">
+        <a href="/courses" class="btn primary lg">Browse courses <%- icon('right') %></a>
+        <% if (!user) { %><a href="/signup?role=teacher" class="btn secondary lg">Teach on Laqtin</a><% } %>
+      </div>
+    </div>
+    <div class="phone" aria-hidden="true">
+      <div class="screen chat">
+        <div class="chat-head"><span class="avatar">PY</span><div><strong>Python Basics · Sara</strong><small>Laqtin, You</small></div></div>
+        <div class="chat-body">
+          <div class="chat-day">Today</div>
+          <div class="msg out">👋 Hi Sara! Welcome to <b>Python Basics</b>. Here's lesson 1.<span class="time">09:00</span></div>
+          <div class="msg out media"><div class="vthumb"><span><svg viewBox="0 0 10 12"><path d="M0 0l10 6-10 6z"/></svg></span></div><div class="cap">📺 <b>Lesson 1/6: Variables</b><span class="time">09:00</span></div></div>
+          <div class="msg in">✅ I watched it<span class="time">09:07</span></div>
+          <div class="msg out poll">
+            <div class="q">❓ Q1/3: Which line creates a variable?</div>
+            <div class="sel">Select one</div>
+            <div class="opt"><span class="radio"></span>A. print(x)</div>
+            <div class="opt chosen"><span class="radio"></span>B. x = 5</div>
+            <div class="opt"><span class="radio"></span>C. def x()</div>
+            <span class="time">09:07</span>
+          </div>
+          <div class="msg out">✅ <b>Correct!</b><br>💡 The = sign assigns a value to a name.<span class="time">09:08</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="steps">
+      <div class="card"><div class="card-body"><div class="step-n">1</div><h3>Enroll in a course</h3><p>Pick a course and add your WhatsApp number. That's the whole setup.</p></div></div>
+      <div class="card"><div class="card-body"><div class="step-n">2</div><h3>Watch in your group</h3><p>Your teacher's lessons arrive one by one in a private group. Watch when it suits you.</p></div></div>
+      <div class="card"><div class="card-body"><div class="step-n">3</div><h3>Practice with polls</h3><p>Answer quick multiple-choice polls and get feedback instantly. Everything syncs to the portal.</p></div></div>
+    </div>
+  </section>
+
+  <% if (courses.length) { %>
+  <section class="section">
+    <div class="row between" style="margin-bottom:16px"><h2 style="margin:0">Latest courses</h2><a href="/courses" class="small">View all <%- icon('right', 'chip-check') %></a></div>
+    <div class="grid cols-3">
+      <% courses.forEach(function (c) { %><%- include('partials/course-card', { c }) %><% }) %>
+    </div>
+  </section>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

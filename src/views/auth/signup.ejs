@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="auth card"><div class="card-body">
+    <h1>Create your account</h1>
+    <p class="sub">Start learning in minutes.</p>
+    <% if (typeof error !== 'undefined') { %><div class="alert error"><%- icon('alert') %><span><%= error %></span></div><% } %>
+    <%- include('../partials/social') %>
+    <form method="post" action="/signup" novalidate data-role-form>
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <% if (allowTeacherSignup) { %>
+        <div class="field">
+          <span class="label">I want to</span>
+          <div class="choice-cards">
+            <label class="choice-card"><input type="radio" name="role" value="student" <%= values.role !== 'teacher' ? 'checked' : '' %>><strong>Learn</strong><span>Take courses</span></label>
+            <label class="choice-card"><input type="radio" name="role" value="teacher" <%= values.role === 'teacher' ? 'checked' : '' %>><strong>Teach</strong><span>Create courses</span></label>
+          </div>
+        </div>
+      <% } %>
+      <label class="field"><span>Full name</span><input type="text" name="name" value="<%= values.name || '' %>" required autocomplete="name"></label>
+      <label class="field"><span>Email</span><input type="email" name="email" value="<%= values.email || '' %>" required autocomplete="email"></label>
+      <label class="field"><span>WhatsApp number <em class="faint" data-optional style="font-style:normal; font-weight:400">(optional)</em></span><input type="tel" name="phone" value="<%= values.phone || '' %>" placeholder="+971 50 123 4567" autocomplete="tel"><span class="hint">Your lessons and practice arrive here. Include the country code.</span></label>
+      <label class="field"><span>Password</span><input type="password" name="password" required minlength="8" autocomplete="new-password"><span class="hint">At least 8 characters.</span></label>
+      <button class="btn primary block lg" type="submit">Create account</button>
+    </form>
+    <p class="legal">By continuing you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
+    <p class="switch">Already have an account? <a href="/login">Sign in</a></p>
+  </div></div>
+</div>
+<%- include('../partials/foot') %>

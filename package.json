@@ -1,0 +1,28 @@
+{
+  "name": "laqtin",
+  "version": "0.1.0",
+  "description": "Laqtin academy: video courses with practice delivered through WhatsApp groups and polls, synced with a web portal.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
+    "seed": "node --disable-warning=ExperimentalWarning scripts/seed.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/"
+  },
+  "dependencies": {
+    "cookie-session": "^2.1.1",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.7.3",
+    "helmet": "^8.3.0",
+    "multer": "^2.0.2",
+    "qrcode": "^1.5.4"
+  },
+  "optionalDependencies": {
+    "baileys": "7.0.0-rc14"
+  }
+}

@@ -1,0 +1,9 @@
+<% if (!video) { %>
+  <div class="player empty-player">No video for this lesson yet</div>
+<% } else if (video.type === 'file') { %>
+  <div class="player"><video src="<%= video.src %>" controls playsinline preload="metadata" <%- typeof track !== 'undefined' && track ? 'data-track-watch' : '' %>></video></div>
+<% } else if (video.type === 'youtube' || video.type === 'vimeo') { %>
+  <div class="player"><iframe src="<%= video.src %>" title="Video" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>
+<% } else { %>
+  <div class="player empty-player"><a class="btn secondary" href="<%= video.src %>" target="_blank" rel="noopener"><%- icon('external') %>Open video</a></div>
+<% } %>

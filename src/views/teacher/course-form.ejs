@@ -1,0 +1,12 @@
+<%- include('../partials/head') %>
+<div class="container narrow">
+  <div class="eyebrow"><a href="/teach">Teaching</a> <span>/</span></div>
+  <h1 style="margin-bottom:24px">New course</h1>
+  <% if (typeof error !== 'undefined') { %><div class="alert error"><%- icon('alert') %><span><%= error %></span></div><% } %>
+  <form method="post" action="/teach/courses" class="card">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="card-body"><%- include('course-fields') %></div>
+    <div class="card-foot row between"><a href="/teach" class="btn ghost">Cancel</a><button class="btn primary">Create course</button></div>
+  </form>
+</div>
+<%- include('../partials/foot') %>

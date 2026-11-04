@@ -1,0 +1,8 @@
+<% if (socialProviders.length) { %>
+  <div class="social">
+    <% socialProviders.forEach(function (p) { %>
+      <a class="btn btn-social" href="/auth/<%= p.name %>"><%- icon(p.name) %> Continue with <%= p.label %></a>
+    <% }) %>
+  </div>
+  <div class="or">or <%= typeof orText !== 'undefined' ? orText : 'with email' %></div>
+<% } %>

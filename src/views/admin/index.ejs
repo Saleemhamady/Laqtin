@@ -1,0 +1,46 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head"><div><h1>Admin</h1><p class="muted">Academy health and the WhatsApp connection.</p></div><a href="/admin/users" class="btn secondary"><%- icon('users') %>Manage users</a></div>
+
+  <div class="stat-row" style="margin-bottom:32px">
+    <div class="stat"><div class="v"><%= stats.students %></div><div class="k">Students</div></div>
+    <div class="stat"><div class="v"><%= stats.teachers %></div><div class="k">Teachers</div></div>
+    <div class="stat"><div class="v"><%= stats.courses %></div><div class="k">Published courses</div></div>
+    <div class="stat"><div class="v"><%= stats.enrollments %></div><div class="k">Enrollments</div></div>
+    <div class="stat"><div class="v"><%= stats.answers %></div><div class="k">Answers</div></div>
+    <div class="stat"><div class="v"><%= stats.messages %></div><div class="k">WhatsApp messages</div></div>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="card-head"><h2>Needs attention</h2><span class="small muted"><%= attention.length %></span></div>
+      <% if (!attention.length) { %>
+        <div class="empty"><div class="icon-ring"><%- icon('check') %></div><h3>All good</h3><p>Every student is receiving their lessons.</p></div>
+      <% } else { %>
+        <ul class="list">
+          <% attention.forEach(function (a) { %>
+            <li>
+              <span class="avatar"><%= initials(a.name) %></span>
+              <div class="grow"><span class="title"><%= a.name %> · <%= a.title %></span><span class="sub"><%= a.wa_state === 'error' ? a.wa_error : 'Waiting for the student to join the group' %></span></div>
+              <form method="post" action="/admin/enrollments/<%= a.id %>/retry"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn secondary sm"><%- icon('refresh') %>Retry</button></form>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </div>
+
+    <aside class="card" data-wa-status="<%= status.state %>">
+      <div class="card-head"><h2 class="row" style="gap:8px"><%- icon('whatsapp', 'wa-ico') %>WhatsApp</h2>
+        <span class="badge <%= status.state === 'ready' ? 'green' : status.state === 'qr' ? 'amber' : 'red' %>"><%= { ready: 'Connected', qr: 'Scan to link', connecting: 'Connecting', disconnected: 'Disconnected', unconfigured: 'Not configured' }[status.state] || status.state %></span></div>
+      <div class="card-body">
+        <dl class="kv" style="grid-template-columns:80px 1fr; margin-bottom:14px"><dt>Mode</dt><dd><%= provider ? provider.label : '—' %></dd></dl>
+        <p class="small muted"><%= status.detail %></p>
+        <% if (qr) { %>
+          <div class="qr"><img src="<%= qr %>" alt="WhatsApp link QR code" width="240" height="240"></div>
+          <ol class="small muted" style="padding-left:18px; margin:14px 0 0"><li>Open WhatsApp on the academy phone</li><li>Settings → Linked devices → Link a device</li><li>Scan this code</li></ol>
+        <% } %>
+      </div>
+    </aside>
+  </div>
+</div>
+<%- include('../partials/foot') %>

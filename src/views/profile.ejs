@@ -1,0 +1,39 @@
+<%- include('partials/head') %>
+<div class="container narrow">
+  <div class="page-head"><div><h1>Profile</h1><p class="muted">Your details and how you sign in.</p></div></div>
+  <% if (typeof error !== 'undefined') { %><div class="alert error"><%- icon('alert') %><span><%= error %></span></div><% } %>
+  <form method="post" action="/profile" class="card">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="card-body">
+      <div class="field-row">
+        <label class="field"><span>Full name</span><input type="text" name="name" value="<%= values.name %>" required></label>
+        <label class="field"><span>Email</span><input type="email" value="<%= user.email %>" disabled></label>
+      </div>
+      <label class="field"><span>WhatsApp number</span><input type="tel" name="phone" value="<%= values.phone || '' %>" placeholder="+971 50 123 4567"><span class="hint">New courses will be delivered to this number.</span></label>
+      <label class="field" style="margin-bottom:0"><span><%= hasPassword ? 'Change password' : 'Set a password' %></span><input type="password" name="new_password" minlength="8" autocomplete="new-password" placeholder="<%= hasPassword ? 'Leave blank to keep your current password' : 'Optional — lets you sign in with email too' %>"></label>
+    </div>
+    <div class="card-foot row between"><span class="small muted">Role: <%= user.role %></span><button class="btn primary" type="submit">Save changes</button></div>
+  </form>
+
+  <div class="card section">
+    <div class="card-head"><h2>Connected accounts</h2></div>
+    <ul class="list">
+      <% ['google', 'microsoft', 'facebook'].forEach(function (p) {
+           const linked = identities.find(i => i.provider === p);
+           const enabled = socialProviders.some(s => s.name === p);
+           if (!linked && !enabled) return; %>
+        <li>
+          <span class="file-ico" style="background:#fff;border:1px solid var(--line)"><%- icon(p) %></span>
+          <div class="grow"><span class="title"><%= p[0].toUpperCase() + p.slice(1) %></span><span class="sub"><%= linked ? (linked.email || 'Connected') : 'Not connected' %></span></div>
+          <% if (linked) { %>
+            <form method="post" action="/profile/identities/<%= p %>/remove" data-confirm="Disconnect <%= p %>?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn danger sm">Disconnect</button></form>
+          <% } else { %>
+            <a class="btn secondary sm" href="/auth/<%= p %>">Connect</a>
+          <% } %>
+        </li>
+      <% }) %>
+      <% if (!identities.length && !socialProviders.length) { %><li class="muted small">Social sign-in isn’t enabled on this academy.</li><% } %>
+    </ul>
+  </div>
+</div>
+<%- include('partials/foot') %>

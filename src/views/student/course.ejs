@@ -1,0 +1,52 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><a href="/learn">My learning</a> <span>/</span></div>
+      <h1><%= course.title %></h1>
+      <p class="muted">with <%= course.teacher_name %></p>
+    </div>
+    <% if (next) { %><a href="/learn/lesson/<%= next.lesson.id %>" class="btn primary"><%- icon('play') %><%= progress.done ? 'Continue' : 'Start' %>: <%= next.lesson.title.length > 28 ? next.lesson.title.slice(0, 28) + '…' : next.lesson.title %></a><% } %>
+  </div>
+
+  <% if (enrollment.wa_state === 'awaiting_join' && enrollment.wa_invite_link) { %>
+    <div class="alert warn"><%- icon('whatsapp') %><span>We couldn’t add you to your WhatsApp group automatically (your privacy settings). <a href="<%= enrollment.wa_invite_link %>" target="_blank" rel="noopener">Join the group</a> to start receiving lessons.</span></div>
+  <% } else if (enrollment.wa_state === 'awaiting_join') { %>
+    <div class="alert warn"><%- icon('whatsapp') %><span>We sent you a WhatsApp message. Reply to it to start receiving lessons there.</span></div>
+  <% } else if (enrollment.wa_state === 'error') { %>
+    <div class="alert error"><%- icon('alert') %><span>We couldn’t reach you on WhatsApp yet. Check your number on your <a href="/profile">profile</a> — you can keep learning here meanwhile.</span></div>
+  <% } %>
+
+  <div class="stat-row" style="margin-bottom:32px">
+    <div class="stat"><div class="v"><%= progress.pct %>%</div><div class="k">Complete</div></div>
+    <div class="stat"><div class="v"><%= progress.watched %>/<%= progress.lessons.length %></div><div class="k">Lessons watched</div></div>
+    <div class="stat"><div class="v"><%= progress.answered %>/<%= progress.totalQuestions %></div><div class="k">Questions answered</div></div>
+    <div class="stat"><div class="v"><%= progress.scorePct === null ? '—' : progress.scorePct + '%' %></div><div class="k">Correct answers</div></div>
+  </div>
+
+  <div class="split wide-side">
+    <div class="card">
+      <div class="card-head"><h2>Lessons</h2></div>
+      <ul class="list">
+        <% progress.lessons.forEach(function (r, i) { const current = enrollment.current_lesson_id === r.lesson.id && enrollment.wa_state !== 'done'; %>
+          <li>
+            <span class="num <%= r.complete ? 'done' : current ? 'active' : '' %>"><% if (r.complete) { %><%- icon('check') %><% } else { %><%= i + 1 %><% } %></span>
+            <div class="grow">
+              <a class="title" href="/learn/lesson/<%= r.lesson.id %>"><%= r.lesson.title %></a>
+              <span class="sub">
+                <%= r.progress.watched_at ? 'Watched' + (r.progress.watched_via === 'whatsapp' ? ' on WhatsApp' : '') : 'Not watched yet' %>
+                <% if (r.questions.length) { %> · <%= r.answered %>/<%= r.questions.length %> answered<% if (r.answered) { %> · <%= r.correct %> correct<% } %><% } %>
+              </span>
+            </div>
+            <% if (current) { %><span class="badge teal">On WhatsApp now</span><% } %>
+            <a href="/learn/lesson/<%= r.lesson.id %>" class="btn ghost icon" aria-label="Open lesson"><%- icon('right') %></a>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+    <aside class="sticky">
+      <%- include('../partials/chat', { enrollmentId: enrollment.id, chatTitle: course.title, interactive: waProvider && waProvider.interactiveMirror }) %>
+    </aside>
+  </div>
+</div>
+<%- include('../partials/foot') %>

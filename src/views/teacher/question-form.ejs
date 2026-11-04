@@ -1,0 +1,59 @@
+<%# Question builder. q is null for a new question. %>
+<% const opts = q ? q.options : ['', '', '']; const L = 'ABCDEFGHIJ'; const fid = q ? 'q' + q.id : 'new'; %>
+<form method="post" action="<%= action %>?_csrf=<%= encodeURIComponent(csrf) %>" enctype="multipart/form-data" class="builder" data-builder>
+  <div>
+    <label class="field"><span>Question</span><textarea name="prompt" rows="2" maxlength="240" required placeholder="e.g. Which keyword defines a function in Python?" data-prompt><%= q ? q.prompt : '' %></textarea></label>
+
+    <div class="field">
+      <span class="label">Answers <span class="hint" style="display:inline; margin-left:6px">Tick the correct one</span></span>
+      <div data-options>
+        <% opts.forEach(function (o, i) { %>
+          <div class="opt-row">
+            <label class="correct-pick" title="Correct answer"><input type="radio" name="correct" value="<%= i %>" <%= q && q.correct_index === i ? 'checked' : '' %> required><span><%- icon('check') %></span></label>
+            <input type="text" name="options" value="<%= o %>" maxlength="96" placeholder="Option <%= L[i] %>">
+            <button type="button" class="btn ghost icon remove" data-remove-option aria-label="Remove option"><%- icon('x') %></button>
+          </div>
+        <% }) %>
+      </div>
+      <button type="button" class="btn ghost sm" data-add-option><%- icon('plus') %>Add option</button>
+    </div>
+
+    <div class="field" style="margin-bottom:0">
+      <span class="label">Explanation <span class="hint" style="display:inline; margin-left:6px">Shown after the student answers</span></span>
+      <div class="explain-box">
+        <label class="field"><span class="sr-only">Explanation text</span><textarea name="explanation" rows="3" maxlength="2000" placeholder="Why is this the right answer?"><%= q ? q.explanation : '' %></textarea></label>
+        <% if (q && q.explanation_file) { %>
+          <div class="current-file">
+            <span class="file-ico"><%- icon(q.explanation_kind === 'video' ? 'video' : q.explanation_kind === 'html' ? 'code' : q.explanation_kind === 'image' ? 'image' : 'file') %></span>
+            <a class="grow" href="/uploads/<%= q.explanation_file %>" target="_blank" rel="noopener"><%= q.explanation_file_name || q.explanation_file %></a>
+            <label class="small muted row" style="gap:6px"><input type="checkbox" name="remove_explanation_file" value="1"> Remove</label>
+          </div>
+        <% } %>
+        <label class="dropzone" data-dropzone>
+          <input type="file" name="explanation_file" accept="video/*,.html,.htm,image/*,.pdf,audio/*">
+          <%- icon('upload') %>
+          <strong data-file-label><%= q && q.explanation_file ? 'Replace attachment' : 'Attach a video, HTML page, image or PDF' %></strong>
+          <span class="hint">Optional · up to <%= maxUploadMb %> MB</span>
+        </label>
+        <label class="field" style="margin:12px 0 0"><span class="sr-only">Explanation link</span><input type="url" name="explanation_url" value="<%= q && q.explanation_url ? q.explanation_url : '' %>" placeholder="…or paste a link (YouTube, Vimeo, any page)"></label>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:20px">
+      <button class="btn primary"><%= q ? 'Save question' : 'Add question' %></button>
+      <% if (q) { %><span class="small muted">Changes apply to students who haven’t reached this question yet.</span><% } %>
+    </div>
+  </div>
+
+  <div class="preview">
+    <span class="label">WhatsApp preview</span>
+    <div class="chat"><div class="chat-body">
+      <div class="msg out poll">
+        <div class="q" data-preview-q>❓ <%= q ? q.prompt : 'Your question' %></div>
+        <div class="sel">Select one</div>
+        <div data-preview-opts></div>
+        <span class="time">now</span>
+      </div>
+    </div></div>
+  </div>
+</form>

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof title !== 'undefined' && title ? title + ' · Laqtin' : 'Laqtin — Learn on WhatsApp' %></title>
+  <meta name="description" content="Short video lessons and practice questions, delivered to your WhatsApp and synced with your portal.">
+  <meta name="csrf-token" content="<%= csrf %>">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css?v=1">
+  <script src="/static/js/app.js?v=1" defer></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <a href="/" class="brand" aria-label="Laqtin home">
+      <span class="brand-mark"><svg viewBox="0 0 10 12"><path d="M0 0l10 6-10 6z"/></svg></span>
+      laqtin
+    </a>
+    <nav class="nav" id="nav">
+      <a href="/courses" class="<%= path.startsWith('/courses') ? 'active' : '' %>">Courses</a>
+      <% if (user) { %>
+        <a href="/learn" class="<%= path.startsWith('/learn') ? 'active' : '' %>">My learning</a>
+        <% if (user.role !== 'student') { %><a href="/teach" class="<%= path.startsWith('/teach') ? 'active' : '' %>">Teach</a><% } %>
+        <% if (user.role === 'admin') { %><a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>">Admin</a><% } %>
+      <% } %>
+    </nav>
+    <button class="btn ghost icon nav-toggle" type="button" data-toggle-nav aria-label="Menu"><%- icon('menu') %></button>
+    <% if (user) { %>
+      <details class="user-menu">
+        <summary aria-label="Account menu">
+          <span class="avatar"><% if (user.avatar_url) { %><img src="<%= user.avatar_url %>" alt="" referrerpolicy="no-referrer"><% } else { %><%= initials(user.name) %><% } %></span>
+        </summary>
+        <div class="menu">
+          <div class="menu-head"><strong class="small"><%= user.name %></strong><div class="small muted"><%= user.email %></div></div>
+          <a href="/learn"><%- icon('book') %>My learning</a>
+          <% if (user.role !== 'student') { %><a href="/teach"><%- icon('grid') %>Teaching</a><% } %>
+          <% if (user.role === 'admin') { %><a href="/admin"><%- icon('shield') %>Admin</a><% } %>
+          <a href="/profile"><%- icon('user') %>Profile</a>
+          <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit"><%- icon('logout') %>Sign out</button></form>
+        </div>
+      </details>
+    <% } else { %>
+      <div class="row" style="gap:8px">
+        <a href="/login" class="btn ghost sm">Sign in</a>
+        <a href="/signup" class="btn sm">Get started</a>
+      </div>
+    <% } %>
+  </div>
+</header>
+<% if (flash) { %>
+  <div class="toast-wrap" data-toast><div class="alert <%= flash.type %>"><%- icon(flash.type === 'error' ? 'alert' : 'check') %><span><%= flash.text %></span></div></div>
+<% } %>
+<main>

@@ -1,0 +1,82 @@
+<%- include('../partials/head') %>
+<% const L = 'ABCDEFGHIJ'; %>
+<div class="container">
+  <div class="eyebrow"><a href="<%= preview ? '/teach/courses/' + course.id : '/learn/course/' + course.id %>"><%= course.title %></a> <span>/</span> <span>Lesson <%= idx + 1 %> of <%= lessons.length %></span></div>
+  <% if (preview) { %><div class="alert info"><%- icon('eye') %><span>Preview — this is what students see. Answers aren’t saved.</span></div><% } %>
+  <div class="split">
+    <div>
+      <%- include('../partials/player', { video, track: !preview && !(row && row.progress.watched_at) }) %>
+      <div class="row between" style="margin:22px 0 8px; align-items:flex-start">
+        <h1 style="margin:0; flex:1"><%= lesson.title %></h1>
+        <% if (!preview) { %>
+          <% if (row && row.progress.watched_at) { %>
+            <span class="badge green" data-watched-badge>Watched</span>
+          <% } else { %>
+            <button class="btn secondary sm" data-mark-watched="<%= lesson.id %>"><%- icon('check') %>Mark as watched</button>
+            <span class="badge green" data-watched-badge hidden>Watched</span>
+          <% } %>
+        <% } %>
+      </div>
+      <% if (lesson.description) { %><div class="prose" style="margin-bottom:8px"><% lesson.description.split(/\n{2,}/).forEach(function (p) { %><p><%= p %></p><% }) %></div><% } %>
+
+      <% if (materials.length) { %>
+        <section class="section">
+          <h2>Materials</h2>
+          <ul class="materials">
+            <% materials.forEach(function (m) { const href = m.file ? '/uploads/' + m.file : m.url; %>
+              <li><a href="<%= href %>" target="_blank" rel="noopener"><span class="file-ico"><%- icon(m.file ? (/\.(mp4|webm|mov)$/i.test(m.file) ? 'video' : /\.html?$/i.test(m.file) ? 'code' : /\.(png|jpe?g|gif|webp)$/i.test(m.file) ? 'image' : 'file') : 'link') %></span><span class="grow"><%= m.title %></span><%- icon('external', 'chip-check') %></a></li>
+            <% }) %>
+          </ul>
+        </section>
+      <% } %>
+
+      <% if (questions.length) { %>
+        <section class="section" id="practice">
+          <div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Practice</h2><span class="small muted"><%= questions.length %> question<%= questions.length === 1 ? '' : 's' %> · also sent as WhatsApp polls</span></div>
+          <div class="card">
+            <% questions.forEach(function (q, qi) { const a = row && row.answers.get(q.id); %>
+              <div class="quiz-q" data-question="<%= q.id %>" <%- preview ? 'data-preview' : '' %> data-correct="<%= preview ? q.correct_index : '' %>">
+                <div class="qn">Question <%= qi + 1 %><% if (a) { %><span class="badge <%= a.is_correct ? 'green' : 'red' %>"><%= a.is_correct ? 'Correct' : 'Incorrect' %></span><span class="faint" style="text-transform:none; letter-spacing:0; font-weight:400">answered <%= a.via === 'whatsapp' ? 'on WhatsApp' : 'here' %></span><% } %></div>
+                <div class="prompt"><%= q.prompt %></div>
+                <div class="options">
+                  <% q.options.forEach(function (o, oi) {
+                       const cls = a ? (oi === q.correct_index ? 'correct' : oi === a.selected_index ? 'wrong' : '') : ''; %>
+                    <button type="button" class="option <%= cls %>" data-index="<%= oi %>" <%= a ? 'disabled' : '' %>><span class="letter"><%= L[oi] %></span><span><%= o %></span></button>
+                  <% }) %>
+                </div>
+                <div class="feedback" data-feedback <%= a ? '' : 'hidden' %>>
+                  <% if (a) { %>
+                    <div class="verdict <%= a.is_correct ? 'ok' : 'no' %>"><%= a.is_correct ? 'Correct!' : 'Not quite — the answer is ' + L[q.correct_index] + '.' %></div>
+                    <% if (q.explanation) { %><div><%= q.explanation %></div><% } %>
+                    <%- include('../partials/explanation-attach', { q }) %>
+                  <% } %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </section>
+      <% } %>
+
+      <div class="pager">
+        <% if (prev) { %><a href="/learn/lesson/<%= prev.id %>" class="card"><div class="card-body"><small>Previous</small><%= prev.title %></div></a><% } %>
+        <% if (next) { %><a href="/learn/lesson/<%= next.id %>" class="card next"><div class="card-body"><small>Next</small><%= next.title %></div></a><% } %>
+      </div>
+    </div>
+
+    <aside class="sticky">
+      <div class="card">
+        <div class="card-head"><h3><%= course.title %></h3><% if (progress) { %><span class="small muted"><%= progress.pct %>%</span><% } %></div>
+        <% if (progress) { %><div style="padding:14px 18px 0"><div class="progress"><span style="width:<%= progress.pct %>%"></span></div></div><% } %>
+        <ol class="lesson-nav">
+          <% lessons.forEach(function (l, i) { const r = progress && progress.lessons[i]; %>
+            <li><a href="/learn/lesson/<%= l.id %>" class="<%= l.id === lesson.id ? 'current' : '' %>"><span class="num <%= r && r.complete ? 'done' : '' %>"><% if (r && r.complete) { %><%- icon('check') %><% } else { %><%= i + 1 %><% } %></span><span><%= l.title %></span></a></li>
+          <% }) %>
+        </ol>
+      </div>
+      <% if (enrollment && !preview) { %>
+        <div style="margin-top:20px"><%- include('../partials/chat', { enrollmentId: enrollment.id, chatTitle: course.title, interactive: waProvider && waProvider.interactiveMirror }) %></div>
+      <% } %>
+    </aside>
+  </div>
+</div>
+<%- include('../partials/foot') %>

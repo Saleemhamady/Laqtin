@@ -1,0 +1,6 @@
+<label class="field"><span>Title</span><input type="text" name="title" value="<%= course.title || '' %>" maxlength="120" required placeholder="e.g. Python in 10 days"></label>
+<label class="field"><span>One-line summary</span><input type="text" name="summary" value="<%= course.summary || '' %>" maxlength="200" placeholder="What will students be able to do?"><span class="hint">Shown on course cards.</span></label>
+<label class="field"><span>Description</span><textarea name="description" rows="5" placeholder="Who it’s for, what’s covered, what students need."><%= course.description || '' %></textarea></label>
+<div class="field" style="margin-bottom:0"><span class="label">Cover colour</span>
+  <div class="swatches"><% colors.forEach(function (col) { %><label class="swatch"><input type="radio" name="color" value="<%= col %>" <%= course.color === col ? 'checked' : '' %>><span style="background:<%= col %>"></span></label><% }) %></div>
+</div>

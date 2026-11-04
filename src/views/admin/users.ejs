@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <div><div class="eyebrow"><a href="/admin">Admin</a> <span>/</span></div><h1>Users</h1></div>
+    <form method="get" style="min-width:280px"><input type="search" name="q" value="<%= q %>" placeholder="Search name, email or phone"></form>
+  </div>
+  <div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Phone</th><th>Sign-in</th><th>Joined</th><th>Role</th></tr></thead>
+    <tbody>
+      <% users.forEach(function (u) { %>
+        <tr>
+          <td><div class="row" style="gap:10px; flex-wrap:nowrap"><span class="avatar"><%= initials(u.name) %></span><div><strong style="font-weight:550"><%= u.name %></strong><div class="small muted"><%= u.email %></div></div></div></td>
+          <td class="small"><%= u.phone || '—' %></td>
+          <td class="small muted"><%= [u.password_hash ? 'email' : null, u.providers].filter(Boolean).join(', ') %></td>
+          <td class="small muted nowrap"><%= u.created_at.slice(0, 10) %></td>
+          <td>
+            <form method="post" action="/admin/users/<%= u.id %>/role" class="row" style="gap:6px; flex-wrap:nowrap">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <select name="role" style="height:32px; width:auto" data-autosubmit>
+                <% ['student', 'teacher', 'admin'].forEach(function (r) { %><option value="<%= r %>" <%= u.role === r ? 'selected' : '' %>><%= r[0].toUpperCase() + r.slice(1) %></option><% }) %>
+              </select>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table></div></div>
+</div>
+<%- include('../partials/foot') %>

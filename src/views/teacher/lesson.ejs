@@ -1,0 +1,140 @@
+<%- include('../partials/head') %>
+<% const idx = lessons.findIndex(l => l.id === lesson.id); const L = 'ABCDEFGHIJ'; %>
+<div class="container">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow"><a href="/teach">Teaching</a> <span>/</span> <a href="/teach/courses/<%= course.id %>"><%= course.title %></a> <span>/</span> <span>Lesson <%= idx + 1 %></span></div>
+      <h1><%= lesson.title %></h1>
+    </div>
+    <div class="row">
+      <a class="btn ghost" href="/learn/lesson/<%= lesson.id %>" target="_blank"><%- icon('eye') %>Preview</a>
+      <% if (lessons[idx + 1]) { %><a class="btn secondary" href="/teach/lessons/<%= lessons[idx + 1].id %>">Next lesson<%- icon('right') %></a><% } %>
+    </div>
+  </div>
+
+  <div class="split wide-side" style="grid-template-columns:minmax(0,1fr) 300px">
+    <div>
+      <!-- 1. Video -->
+      <form method="post" action="/teach/lessons/<%= lesson.id %>?_csrf=<%= encodeURIComponent(csrf) %>" enctype="multipart/form-data" class="card" id="video">
+        <div class="card-head"><h2><span class="faint">1</span>&nbsp; Video &amp; details</h2></div>
+        <div class="card-body">
+          <label class="field"><span>Lesson title</span><input type="text" name="title" value="<%= lesson.title %>" maxlength="160" required></label>
+          <label class="field"><span>Short description</span><textarea name="description" rows="3" placeholder="What students will learn in this lesson. Also sent on WhatsApp with the video."><%= lesson.description %></textarea></label>
+          <% if (video) { %>
+            <div class="field"><span class="label">Current video</span><%- include('../partials/player', { video }) %>
+              <label class="small muted row" style="gap:6px; margin-top:8px"><input type="checkbox" name="remove_video" value="1"> Remove video</label></div>
+          <% } %>
+          <div class="field-row" style="align-items:start">
+            <label class="dropzone" data-dropzone>
+              <input type="file" name="video" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v">
+              <%- icon('upload') %>
+              <strong data-file-label><%= lesson.video_file ? 'Replace video file' : 'Upload a video' %></strong>
+              <span class="hint">MP4 recommended · up to <%= maxUploadMb %> MB. Files under 16 MB are sent inside WhatsApp; larger ones as a link.</span>
+            </label>
+            <label class="field" style="margin:0"><span>…or paste a link</span><input type="url" name="video_url" value="<%= lesson.video_url || '' %>" placeholder="https://youtu.be/…"><span class="hint">YouTube, Vimeo or a direct .mp4 link.</span></label>
+          </div>
+        </div>
+        <div class="card-foot" style="text-align:right"><button class="btn primary">Save</button></div>
+      </form>
+
+      <!-- 2. Materials -->
+      <div class="card section" id="materials">
+        <div class="card-head"><h2><span class="faint">2</span>&nbsp; Materials</h2><span class="small muted">Worksheets, slides, HTML pages, links</span></div>
+        <% if (materials.length) { %>
+          <ul class="list">
+            <% materials.forEach(function (m) { %>
+              <li>
+                <span class="file-ico"><%- icon(m.kind === 'video' ? 'video' : m.kind === 'html' ? 'code' : m.kind === 'image' ? 'image' : m.kind === 'link' ? 'link' : 'file') %></span>
+                <a class="grow title" href="<%= m.file ? '/uploads/' + m.file : m.url %>" target="_blank" rel="noopener"><%= m.title %></a>
+                <form method="post" action="/teach/materials/<%= m.id %>/delete" data-confirm="Remove this material?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn ghost icon remove" aria-label="Remove"><%- icon('trash') %></button></form>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+        <form method="post" action="/teach/lessons/<%= lesson.id %>/materials?_csrf=<%= encodeURIComponent(csrf) %>" enctype="multipart/form-data" class="card-foot">
+          <div class="field-row" style="align-items:start">
+            <label class="dropzone" data-dropzone style="padding:14px">
+              <input type="file" name="file">
+              <strong data-file-label>Choose a file</strong>
+              <span class="hint">PDF, Office, images, video, HTML, ZIP</span>
+            </label>
+            <div>
+              <input type="url" name="url" placeholder="…or paste a link" style="margin-bottom:8px">
+              <input type="text" name="title" placeholder="Title (optional)" maxlength="160">
+            </div>
+          </div>
+          <div style="text-align:right; margin-top:12px"><button class="btn secondary"><%- icon('plus') %>Add material</button></div>
+        </form>
+      </div>
+
+      <!-- 3. Questions -->
+      <div class="section" id="questions">
+        <div class="row between" style="margin-bottom:14px">
+          <h2 style="margin:0"><span class="faint">3</span>&nbsp; Practice questions</h2>
+          <span class="small muted">Sent one by one as WhatsApp polls after the video</span>
+        </div>
+        <% questions.forEach(function (q, qi) { %>
+          <details class="q-card" id="q-<%= q.id %>" <%= editId === q.id ? 'open' : '' %>>
+            <summary>
+              <span class="num"><%= qi + 1 %></span>
+              <div class="q-sum">
+                <strong><%= q.prompt %></strong>
+                <div class="ans"><%- icon('check') %><%= L[q.correct_index] %>. <%= q.options[q.correct_index] %>
+                  <span class="faint">· <%= q.options.length %> options</span>
+                  <% if (q.explanation || q.explanation_file || q.explanation_url) { %><span class="badge plain">Explanation<%= q.explanation_kind ? ' · ' + q.explanation_kind : q.explanation_url ? ' · link' : '' %></span><% } %>
+                </div>
+              </div>
+              <%- icon('down', 'chev') %>
+            </summary>
+            <div class="q-body">
+              <%- include('question-form', { q, action: '/teach/questions/' + q.id }) %>
+              <hr class="divider">
+              <div class="row between">
+                <form method="post" action="/teach/questions/<%= q.id %>/move" class="row" style="gap:4px">
+                  <input type="hidden" name="_csrf" value="<%= csrf %>">
+                  <button class="btn ghost sm" name="dir" value="up" <%= qi === 0 ? 'disabled' : '' %>><%- icon('up') %>Move up</button>
+                  <button class="btn ghost sm" name="dir" value="down" <%= qi === questions.length - 1 ? 'disabled' : '' %>><%- icon('down') %>Move down</button>
+                </form>
+                <form method="post" action="/teach/questions/<%= q.id %>/delete" data-confirm="Delete this question?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn danger sm"><%- icon('trash') %>Delete</button></form>
+              </div>
+            </div>
+          </details>
+        <% }) %>
+
+        <details class="q-card" id="new-question" <%= questions.length ? '' : 'open' %> style="<%= questions.length ? 'margin-top:12px' : '' %>">
+          <summary><span class="num" style="border-style:dashed"><%- icon('plus') %></span><div class="q-sum"><strong>Add a question</strong><div class="ans faint" style="color:var(--muted)">Multiple choice · 2–10 options</div></div><%- icon('down', 'chev') %></summary>
+          <div class="q-body"><%- include('question-form', { q: null, action: '/teach/lessons/' + lesson.id + '/questions' }) %></div>
+        </details>
+      </div>
+
+      <div class="card section">
+        <div class="card-body row between">
+          <div><h3>Delete lesson</h3><p class="small muted" style="margin:0">Removes the video, materials and questions.</p></div>
+          <form method="post" action="/teach/lessons/<%= lesson.id %>/delete" data-confirm="Delete this lesson? This can’t be undone."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn danger"><%- icon('trash') %>Delete lesson</button></form>
+        </div>
+      </div>
+    </div>
+
+    <aside class="sticky">
+      <div class="card">
+        <div class="card-head"><h3>Lessons</h3><a href="/teach/courses/<%= course.id %>" class="small">All</a></div>
+        <ol class="lesson-nav">
+          <% lessons.forEach(function (l, i) { %>
+            <li><a href="/teach/lessons/<%= l.id %>" class="<%= l.id === lesson.id ? 'current' : '' %>"><span class="num"><%= i + 1 %></span><span><%= l.title %></span></a></li>
+          <% }) %>
+        </ol>
+      </div>
+      <div class="card" style="margin-top:20px"><div class="card-body small">
+        <strong class="row" style="gap:8px; margin-bottom:8px"><%- icon('whatsapp', 'wa-ico') %>On WhatsApp, students get</strong>
+        <ol class="muted" style="margin:0; padding-left:18px">
+          <li>The video with its description</li>
+          <li>Your materials as links</li>
+          <li>An “I watched it” poll</li>
+          <li>Each question as a poll, with your explanation after they vote</li>
+          <li>Their score, then the next lesson</li>
+        </ol>
+      </div></div>
+    </aside>
+  </div>
+</div>
+<%- include('../partials/foot') %>
