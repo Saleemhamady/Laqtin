@@ -18,7 +18,7 @@
             <p><%= e.teacher_name %></p>
             <div class="progress" style="margin-bottom:14px"><span style="width:<%= p.pct %>%"></span></div>
             <div class="foot">
-              <span class="badge <%= e.wa_state === 'done' ? 'green' : e.wa_state === 'error' ? 'red' : e.wa_state === 'awaiting_join' ? 'amber' : 'teal' %>"><%= WA_STATE_LABEL[e.wa_state] %></span>
+              <span class="badge <%= WA_STATE_TONE[e.wa_state] %>"><%= WA_STATE_LABEL[e.wa_state] %></span>
               <span><%= p.pct %>%</span>
             </div>
           </div>

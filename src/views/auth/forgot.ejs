@@ -1,0 +1,18 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="auth card"><div class="card-body">
+    <h1>Reset your password</h1>
+    <% if (sent) { %>
+      <div class="alert success" style="margin-top:20px"><%- icon('check') %><span>If an account exists for <strong><%= email %></strong>, we’ve emailed a reset link. It’s valid for one hour.</span></div>
+    <% } else { %>
+      <p class="sub">We’ll email you a link to choose a new one.</p>
+      <form method="post" action="/forgot">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email" autofocus></label>
+        <button class="btn primary block lg">Send reset link</button>
+      </form>
+    <% } %>
+    <p class="switch"><a href="/login">Back to sign in</a></p>
+  </div></div>
+</div>
+<%- include('../partials/foot') %>

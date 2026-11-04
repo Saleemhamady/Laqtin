@@ -13,6 +13,9 @@
     <div class="alert warn"><%- icon('whatsapp') %><span>We couldn’t add you to your WhatsApp group automatically (your privacy settings). <a href="<%= enrollment.wa_invite_link %>" target="_blank" rel="noopener">Join the group</a> to start receiving lessons.</span></div>
   <% } else if (enrollment.wa_state === 'awaiting_join') { %>
     <div class="alert warn"><%- icon('whatsapp') %><span>We sent you a WhatsApp message. Reply to it to start receiving lessons there.</span></div>
+  <% } else if (enrollment.wa_state === 'stopped') { %>
+    <div class="alert info row between" style="align-items:center"><span class="row" style="gap:10px"><%- icon('whatsapp') %><span><%= enrollment.wa_error || 'WhatsApp messages are paused. You can keep learning here.' %></span></span>
+      <form method="post" action="/learn/course/<%= course.id %>/resume"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn secondary sm">Resume on WhatsApp</button></form></div>
   <% } else if (enrollment.wa_state === 'error') { %>
     <div class="alert error"><%- icon('alert') %><span>We couldn’t reach you on WhatsApp yet. Check your number on your <a href="/profile">profile</a> — you can keep learning here meanwhile.</span></div>
   <% } %>
@@ -46,6 +49,11 @@
     </div>
     <aside class="sticky">
       <%- include('../partials/chat', { enrollmentId: enrollment.id, chatTitle: course.title, interactive: waProvider && waProvider.interactiveMirror }) %>
+      <% if (!['stopped', 'done'].includes(enrollment.wa_state)) { %>
+        <form method="post" action="/learn/course/<%= course.id %>/pause" style="margin-top:12px; text-align:center" data-confirm="Pause WhatsApp messages for this course? You can resume anytime.">
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link-btn small" style="color:var(--muted)">Pause WhatsApp messages</button>
+        </form>
+      <% } %>
     </aside>
   </div>
 </div>

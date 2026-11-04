@@ -120,6 +120,7 @@ main { min-height: calc(100vh - 64px - 96px); padding: 40px 0 72px; }
 .btn-social svg { width: 18px; height: 18px; }
 .link-btn { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
 .link-btn.danger { color: var(--danger); }
+.link-btn.small { font-size: .85rem; }
 
 /* ---------- surfaces ---------- */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }

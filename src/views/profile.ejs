@@ -35,5 +35,11 @@
       <% if (!identities.length && !socialProviders.length) { %><li class="muted small">Social sign-in isn’t enabled on this academy.</li><% } %>
     </ul>
   </div>
+  <div class="card section">
+    <div class="card-body row between">
+      <div><h3>Delete account</h3><p class="small muted" style="margin:0">Permanently removes your account, enrollments and answers.</p></div>
+      <form method="post" action="/profile/delete" data-confirm="Permanently delete your account and all your progress? This can’t be undone."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn danger"><%- icon('trash') %>Delete account</button></form>
+    </div>
+  </div>
 </div>
 <%- include('partials/foot') %>

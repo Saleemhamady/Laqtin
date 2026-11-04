@@ -27,9 +27,14 @@ export function onActivity(fn) {
 }
 
 /** Serialise all WhatsApp work per enrollment so steps never interleave. */
-function enqueue(enrollmentId, fn) {
+function enqueue(enrollmentId, fn, { evenIfStopped = false } = {}) {
   const prev = queues.get(enrollmentId) || Promise.resolve();
-  const next = prev.then(fn).catch((err) => {
+  const guarded = () => {
+    const e = enrollment(enrollmentId);
+    if (!e || (e.wa_state === 'stopped' && !evenIfStopped)) return;
+    return fn();
+  };
+  const next = prev.then(guarded).catch((err) => {
     console.error(`[whatsapp] enrollment ${enrollmentId}:`, err);
     run(`UPDATE enrollments SET wa_state='error', wa_error=? WHERE id=?`, String(err?.message || err), enrollmentId);
   });
@@ -63,12 +68,20 @@ function log(enrollmentId, direction, kind, body, { ref = null, externalId = nul
   for (const fn of listeners) fn({ enrollmentId, direction, kind, body, ref });
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function pace() {
+  const ms = config.whatsapp.sendDelayMs ?? (provider?.name === 'mock' ? 0 : 1500);
+  if (ms > 0) await sleep(ms);
+}
+
 async function say(e, text) {
+  await pace();
   const r = await provider.sendText(e.wa_chat_id, text);
   log(e.id, 'out', 'text', { text }, { externalId: r?.id });
 }
 
 async function poll(e, name, options, ref) {
+  await pace();
   const r = await provider.sendPoll(e.wa_chat_id, { name: name.slice(0, 255), options });
   log(e.id, 'out', 'poll', { name, options }, { ref, externalId: r.id });
 }
@@ -78,7 +91,10 @@ const lessonLink = (lesson) => `${config.baseUrl}/learn/lesson/${lesson.id}`;
 // ---------- recording (synchronous, shared by web + WhatsApp) ----------
 
 /** Mark a lesson as watched. Returns true if this is the first time. */
+const touched = (enrollmentId) => run(`UPDATE enrollments SET last_progress_at=datetime('now'), nudge_count=0 WHERE id=?`, enrollmentId);
+
 export function recordWatch(enrollmentId, lessonId, via) {
+  touched(enrollmentId);
   run(`INSERT OR IGNORE INTO lesson_progress (enrollment_id, lesson_id) VALUES (?,?)`, enrollmentId, lessonId);
   const r = run(
     `UPDATE lesson_progress SET watched_at=datetime('now'), watched_via=? WHERE enrollment_id=? AND lesson_id=? AND watched_at IS NULL`,
@@ -94,6 +110,7 @@ export function recordAnswer(enrollmentId, questionId, selectedIndex, via) {
   if (!(selectedIndex >= 0 && selectedIndex < q.options.length)) throw new Error('Invalid option');
   const existing = one('SELECT * FROM answers WHERE enrollment_id=? AND question_id=?', enrollmentId, questionId);
   if (existing) return { question: q, answer: existing, isNew: false };
+  touched(enrollmentId);
   run(
     `INSERT INTO answers (enrollment_id, question_id, selected_index, is_correct, via) VALUES (?,?,?,?,?)`,
     enrollmentId, questionId, selectedIndex, selectedIndex === q.correct_index ? 1 : 0, via
@@ -118,6 +135,7 @@ async function deliverLesson(e, lesson) {
 
   const smallFile = lesson.video_file && lesson.video_size && lesson.video_size <= config.whatsapp.maxVideoMb * 1024 * 1024;
   if (smallFile && provider.sendVideo) {
+    await pace();
     const r = await provider.sendVideo(e.wa_chat_id, {
       filePath: `${config.uploadDir}/${lesson.video_file}`,
       url: `${config.baseUrl}/uploads/${lesson.video_file}`,
@@ -231,7 +249,7 @@ export function startJourney(enrollmentId) {
 /** Resume a journey that hit an error (e.g. phone was offline). */
 export function retry(enrollmentId) {
   const e = enrollment(enrollmentId);
-  if (!e) return;
+  if (!e || e.wa_state === 'stopped' || e.wa_state === 'done') return;
   if (!e.wa_chat_id || !e.current_lesson_id) {
     setState(e.id, { wa_state: 'pending', wa_error: null });
     return startJourney(enrollmentId);
@@ -301,6 +319,7 @@ async function sendFeedback(e, q, a) {
   await say(e, feedbackText(q, a));
   if (sendsExplanationVideo(q)) {
     const caption = '🎬 Explanation';
+    await pace();
     const r = await provider.sendVideo(e.wa_chat_id, {
       filePath: `${config.uploadDir}/${q.explanation_file}`,
       url: `${config.baseUrl}/uploads/${q.explanation_file}`,
@@ -335,8 +354,85 @@ export async function handleInbound(evt) {
   }
   if (evt.type === 'text') {
     const e = one(`SELECT * FROM enrollments WHERE wa_chat_id=? ORDER BY id DESC LIMIT 1`, evt.chatId);
-    if (e) log(e.id, 'in', 'text', { text: evt.text });
+    if (!e) return;
+    log(e.id, 'in', 'text', { text: evt.text });
+    const cmd = evt.text.trim().toUpperCase();
+    if (['STOP', 'UNSUBSCRIBE', 'PAUSE'].includes(cmd)) return stop(e.id, 'whatsapp');
+    if (['START', 'RESUME', 'CONTINUE'].includes(cmd)) return resume(e.id);
   }
+  if (evt.type === 'left') {
+    for (const e of all(`SELECT * FROM enrollments WHERE wa_chat_id=? AND wa_state NOT IN ('done','stopped')`, evt.chatId)) {
+      setState(e.id, { wa_state: 'stopped', wa_error: 'The student left the WhatsApp group.' });
+    }
+  }
+}
+
+/** Pause WhatsApp delivery (student request, STOP keyword). Progress is kept. */
+export function stop(enrollmentId, via = 'web') {
+  const e = enrollment(enrollmentId);
+  if (!e || e.wa_state === 'stopped' || e.wa_state === 'done') return;
+  setState(e.id, { wa_state: 'stopped', wa_error: null });
+  if (!e.wa_chat_id || !provider) return;
+  return enqueue(
+    e.id,
+    () =>
+      say(
+        enrollment(e.id),
+        `⏸️ Paused — I won't send more messages${via === 'web' ? '' : ' here'}. Reply *START* or use the portal whenever you want to continue: ${config.baseUrl}/learn/course/${e.course_id}`
+      ),
+    { evenIfStopped: true }
+  );
+}
+
+/** Resume a paused journey from where the student left off. */
+export function resume(enrollmentId) {
+  const e = enrollment(enrollmentId);
+  if (!e || e.wa_state !== 'stopped') return;
+  if (!e.wa_chat_id || !e.current_lesson_id) {
+    setState(e.id, { wa_state: 'pending', wa_error: null });
+    return startJourney(e.id);
+  }
+  setState(e.id, { wa_state: 'awaiting_watch', wa_error: null });
+  return enqueue(e.id, async () => {
+    const cur = enrollment(e.id);
+    await say(cur, `▶️ Welcome back! Let's pick up where you left off.`);
+    const progress = one('SELECT * FROM lesson_progress WHERE enrollment_id=? AND lesson_id=?', cur.id, cur.current_lesson_id);
+    if (progress?.watched_at) await askNext(cur);
+    else await deliverLesson(cur, one('SELECT * FROM lessons WHERE id=?', cur.current_lesson_id));
+  });
+}
+
+/** Restart journeys interrupted by a server restart. */
+export function recoverInterrupted() {
+  for (const e of all(`SELECT id FROM enrollments WHERE wa_state='pending'`)) startJourney(e.id);
+}
+
+/**
+ * Gentle reminders for students who have gone quiet: one nudge per quiet period,
+ * at most config.whatsapp.maxReminders in a row until they make progress again.
+ */
+export async function sendReminders() {
+  const { reminderHours: hours, maxReminders } = config.whatsapp;
+  if (!provider || !hours) return 0;
+  const due = all(
+    `SELECT e.* FROM enrollments e
+      WHERE e.wa_state IN ('awaiting_watch','quizzing') AND e.wa_chat_id IS NOT NULL AND e.nudge_count < ?
+        AND (SELECT MAX(created_at) FROM wa_messages w WHERE w.enrollment_id=e.id) <= datetime('now', ?)`,
+    maxReminders, `-${hours} hours`
+  );
+  for (const e of due) {
+    run('UPDATE enrollments SET nudge_count=nudge_count+1 WHERE id=?', e.id);
+    enqueue(e.id, async () => {
+      const cur = enrollment(e.id);
+      const lesson = one('SELECT * FROM lessons WHERE id=?', cur.current_lesson_id);
+      if (cur.wa_state === 'awaiting_watch') {
+        await say(cur, `⏰ Your lesson *${lesson.title}* is waiting for you — a few minutes is all it takes.\n▶️ ${lessonLink(lesson)}\n\n(Reply STOP to pause these messages.)`);
+      } else if (cur.wa_state === 'quizzing') {
+        await say(cur, `⏰ You have a practice question waiting above 👆 Tap an answer to keep going.\n\n(Reply STOP to pause these messages.)`);
+      }
+    });
+  }
+  return due.length;
 }
 
 // ---------- reporting helpers used by the portal ----------

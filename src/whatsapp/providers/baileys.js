@@ -67,6 +67,7 @@ export async function createBaileysProvider() {
 
     sock.ev.on('group-participants.update', ({ id, action }) => {
       if (action === 'add') onEvent({ type: 'joined', chatId: id });
+      if (action === 'remove' || action === 'leave') onEvent({ type: 'left', chatId: id });
     });
 
     sock.ev.on('messages.upsert', ({ messages }) => {

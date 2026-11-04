@@ -68,6 +68,20 @@ r.get('/learn/lesson/:id', requireUser, (req, res) => {
   });
 });
 
+r.post('/learn/course/:id/pause', requireUser, (req, res) => {
+  const e = myEnrollment(req.user.id, Number(req.params.id));
+  engine.stop(e.id, 'web');
+  req.flash('success', 'WhatsApp messages paused. Your progress is saved.');
+  res.redirect(`/learn/course/${e.course_id}`);
+});
+
+r.post('/learn/course/:id/resume', requireUser, (req, res) => {
+  const e = myEnrollment(req.user.id, Number(req.params.id));
+  engine.resume(e.id);
+  req.flash('success', 'Welcome back! Your next message is on its way.');
+  res.redirect(`/learn/course/${e.course_id}`);
+});
+
 // ---------- JSON API used by the lesson player and the WhatsApp mirror ----------
 
 r.post('/api/lessons/:id/watched', requireUser, (req, res) => {

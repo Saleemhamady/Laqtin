@@ -4,7 +4,9 @@ import { config } from '../config.js';
 import { one, all, run } from '../db.js';
 import { hashPassword, verifyPassword, normalizePhone } from '../lib.js';
 import { enabledProviders, isEnabled, authorizationUrl, handleCallback } from '../oauth.js';
+import crypto from 'node:crypto';
 import { requireUser } from '../middleware.js';
+import { mailEnabled, sendMail } from '../mailer.js';
 
 const r = Router();
 
@@ -41,6 +43,7 @@ r.use((req, res, next) => {
   if (req.method === 'GET' && nextUrl.startsWith('/') && !nextUrl.startsWith('//')) req.session.returnTo = nextUrl;
   res.locals.socialProviders = enabledProviders();
   res.locals.allowTeacherSignup = config.allowTeacherSignup;
+  res.locals.mailEnabled = mailEnabled();
   next();
 });
 
@@ -95,6 +98,56 @@ r.post('/signup', authLimiter, (req, res) => {
 r.post('/logout', (req, res) => {
   req.session = null;
   res.redirect('/');
+});
+
+// ---------- password reset ----------
+
+const tokenHash = (t) => crypto.createHash('sha256').update(t).digest('hex');
+
+r.get('/forgot', (req, res) => res.render('auth/forgot', { title: 'Reset password', sent: false, email: '' }));
+
+r.post('/forgot', authLimiter, async (req, res, next) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  try {
+    const user = one('SELECT * FROM users WHERE email=?', email);
+    if (user) {
+      const token = crypto.randomBytes(32).toString('base64url');
+      run(`DELETE FROM password_resets WHERE user_id=? OR expires_at < datetime('now')`, user.id);
+      run(`INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?,?,datetime('now','+1 hour'))`, tokenHash(token), user.id);
+      const link = `${config.baseUrl}/reset/${token}`;
+      await sendMail({
+        to: user.email,
+        subject: 'Reset your Laqtin password',
+        text: `Hi ${user.name},\n\nUse this link to choose a new password (valid for 1 hour):\n${link}\n\nIf you didn't ask for this, you can ignore this email.`,
+      });
+    }
+    // Same answer whether or not the account exists.
+    res.render('auth/forgot', { title: 'Reset password', sent: true, email });
+  } catch (err) {
+    next(err);
+  }
+});
+
+function validReset(token) {
+  return one(`SELECT * FROM password_resets WHERE token_hash=? AND expires_at > datetime('now')`, tokenHash(String(token)));
+}
+
+r.get('/reset/:token', (req, res) => {
+  if (!validReset(req.params.token)) return res.status(400).render('error', { title: 'Link expired', message: 'This reset link is invalid or has expired. Please request a new one.' });
+  res.render('auth/reset', { title: 'Choose a new password', token: req.params.token });
+});
+
+r.post('/reset/:token', authLimiter, (req, res) => {
+  const reset = validReset(req.params.token);
+  if (!reset) return res.status(400).render('error', { title: 'Link expired', message: 'This reset link is invalid or has expired. Please request a new one.' });
+  const pw = String(req.body.password || '');
+  if (pw.length < 8) return res.status(400).render('auth/reset', { title: 'Choose a new password', token: req.params.token, error: 'Your password needs at least 8 characters.' });
+  run('UPDATE users SET password_hash=? WHERE id=?', hashPassword(pw), reset.user_id);
+  run('DELETE FROM password_resets WHERE user_id=?', reset.user_id);
+  const user = one('SELECT * FROM users WHERE id=?', reset.user_id);
+  signIn(req, user);
+  req.flash('success', 'Password updated.');
+  afterLogin(req, res, user);
 });
 
 // ---------- social sign-in ----------
@@ -207,6 +260,21 @@ r.post('/profile', requireUser, (req, res) => {
   }
   req.flash('success', 'Profile saved.');
   res.redirect('/profile');
+});
+
+r.post('/profile/delete', requireUser, (req, res) => {
+  const owned = one('SELECT COUNT(*) AS n FROM courses WHERE teacher_id=?', req.user.id).n;
+  if (owned) {
+    req.flash('error', 'You still own courses. Delete them or ask an admin to transfer them first.');
+    return res.redirect('/profile');
+  }
+  if (req.user.role === 'admin' && one(`SELECT COUNT(*) AS n FROM users WHERE role='admin'`).n <= 1) {
+    req.flash('error', 'You are the only admin. Make someone else an admin first.');
+    return res.redirect('/profile');
+  }
+  run('DELETE FROM users WHERE id=?', req.user.id);
+  req.session = null;
+  res.redirect('/?deleted=1');
 });
 
 r.post('/profile/identities/:provider/remove', requireUser, (req, res) => {

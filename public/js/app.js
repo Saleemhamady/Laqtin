@@ -237,6 +237,7 @@
     quizzing: 'Waiting for your answer',
     done: 'Course complete 🎓',
     error: 'Delivery paused',
+    stopped: 'Paused — resume anytime',
   };
 
   const chats = $$('[data-chat]').map((el) => ({ el, id: el.dataset.chat, interactive: el.dataset.interactive === '1', last: 0, votes: new Map(), polls: [] }));

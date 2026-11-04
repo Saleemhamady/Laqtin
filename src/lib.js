@@ -83,6 +83,17 @@ export const WA_STATE_LABEL = {
   quizzing: 'Answering questions',
   done: 'Completed',
   error: 'Needs attention',
+  stopped: 'Paused',
+};
+
+export const WA_STATE_TONE = {
+  pending: 'teal',
+  awaiting_join: 'amber',
+  awaiting_watch: 'teal',
+  quizzing: 'teal',
+  done: 'green',
+  error: 'red',
+  stopped: '',
 };
 
 export function initials(name = '') {

@@ -1,0 +1,14 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="auth card"><div class="card-body">
+    <h1>Choose a new password</h1>
+    <p class="sub">At least 8 characters.</p>
+    <% if (typeof error !== 'undefined') { %><div class="alert error"><%- icon('alert') %><span><%= error %></span></div><% } %>
+    <form method="post" action="/reset/<%= token %>">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label class="field"><span>New password</span><input type="password" name="password" required minlength="8" autocomplete="new-password" autofocus></label>
+      <button class="btn primary block lg">Save password</button>
+    </form>
+  </div></div>
+</div>
+<%- include('../partials/foot') %>

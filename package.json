@@ -8,10 +8,10 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning src/server.js",
-    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
-    "seed": "node --disable-warning=ExperimentalWarning scripts/seed.js",
-    "test": "node --disable-warning=ExperimentalWarning --test test/"
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch src/server.js",
+    "seed": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning scripts/seed.js",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "cookie-session": "^2.1.1",
@@ -20,6 +20,7 @@
     "express-rate-limit": "^8.7.3",
     "helmet": "^8.3.0",
     "multer": "^2.0.2",
+    "nodemailer": "^10.3.1",
     "qrcode": "^1.5.4"
   },
   "optionalDependencies": {

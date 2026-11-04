@@ -7,7 +7,7 @@ import cookieSession from 'cookie-session';
 import { config } from './config.js';
 import { one } from './db.js';
 import { getProvider } from './whatsapp/engine.js';
-import { initials, WA_STATE_LABEL } from './lib.js';
+import { initials, WA_STATE_LABEL, WA_STATE_TONE } from './lib.js';
 import { icon } from './icons.js';
 import authRoutes from './routes/auth.js';
 import publicRoutes from './routes/public.js';
@@ -89,6 +89,7 @@ export function createApp() {
     res.locals.initials = initials;
     res.locals.icon = icon;
     res.locals.WA_STATE_LABEL = WA_STATE_LABEL;
+    res.locals.WA_STATE_TONE = WA_STATE_TONE;
     res.locals.waProvider = getProvider();
     res.locals.baseUrl = config.baseUrl;
     req.flash = (type, text) => (req.session.flash = { type, text });

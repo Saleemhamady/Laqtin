@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS enrollments (
   current_lesson_id INTEGER,
   current_question_id INTEGER,
   completed_at TEXT,
+  last_progress_at TEXT,
+  nudge_count INTEGER NOT NULL DEFAULT 0,
   UNIQUE (user_id, course_id)
 );
 
@@ -122,6 +124,12 @@ CREATE TABLE IF NOT EXISTS wa_messages (
 CREATE INDEX IF NOT EXISTS wa_messages_ext ON wa_messages(external_id);
 CREATE INDEX IF NOT EXISTS wa_messages_enr ON wa_messages(enrollment_id);
 
+CREATE TABLE IF NOT EXISTS password_resets (
+  token_hash TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TEXT NOT NULL
+);
+
 -- Key/value store (provider credentials, etc.)
 CREATE TABLE IF NOT EXISTS kv (
   k TEXT PRIMARY KEY,
@@ -136,7 +144,24 @@ export function openDb(file = path.join(config.dataDir, 'laqtin.db')) {
   db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+// Additive migrations for databases created by earlier versions.
+function migrate(d) {
+  const add = (table, column, def) => {
+    const cols = d.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+    if (!cols.includes(column)) d.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+  };
+  add('enrollments', 'last_progress_at', 'TEXT');
+  add('enrollments', 'nudge_count', 'INTEGER NOT NULL DEFAULT 0');
+  add('questions', 'explanation_file', 'TEXT');
+  add('questions', 'explanation_file_name', 'TEXT');
+  add('questions', 'explanation_file_size', 'INTEGER');
+  add('questions', 'explanation_url', 'TEXT');
+  add('users', 'avatar_url', 'TEXT');
+  add('users', 'onboarded', 'INTEGER NOT NULL DEFAULT 1');
 }
 
 export function getDb() {

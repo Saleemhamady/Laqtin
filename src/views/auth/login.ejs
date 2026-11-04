@@ -8,7 +8,7 @@
     <form method="post" action="/login" novalidate>
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <label class="field"><span>Email</span><input type="email" name="email" value="<%= values.email || '' %>" required autocomplete="email" autofocus></label>
-      <label class="field"><span>Password</span><input type="password" name="password" required autocomplete="current-password"></label>
+      <label class="field"><span class="row between"><span>Password</span><% if (mailEnabled) { %><a href="/forgot" class="small" style="font-weight:400">Forgot password?</a><% } %></span><input type="password" name="password" required autocomplete="current-password"></label>
       <button class="btn primary block lg" type="submit">Sign in</button>
     </form>
     <p class="switch">New to Laqtin? <a href="/signup">Create an account</a></p>

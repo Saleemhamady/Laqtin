@@ -12,6 +12,10 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-change-me',
   // When false, new accounts are always students; admins promote teachers.
   allowTeacherSignup: (process.env.ALLOW_TEACHER_SIGNUP ?? 'true') === 'true',
+  smtp: {
+    url: process.env.SMTP_URL || '', // e.g. smtps://user:pass@smtp.example.com:465
+    from: process.env.MAIL_FROM || 'Laqtin <no-reply@example.com>',
+  },
   oauth: {
     google: { clientId: process.env.GOOGLE_CLIENT_ID || '', clientSecret: process.env.GOOGLE_CLIENT_SECRET || '' },
     microsoft: {
@@ -27,6 +31,12 @@ export const config = {
   whatsapp: {
     // mock | baileys | cloud
     provider: process.env.WHATSAPP_PROVIDER || 'mock',
+    // Pause between outgoing messages. Keeps conversations readable and protects the
+    // number from being flagged for bursty automation. Defaults to 0 in simulator mode.
+    sendDelayMs: process.env.WHATSAPP_SEND_DELAY_MS != null ? Number(process.env.WHATSAPP_SEND_DELAY_MS) : null,
+    // Friendly nudges when a student goes quiet. Set REMINDER_HOURS=0 to disable.
+    reminderHours: Number(process.env.REMINDER_HOURS ?? 24),
+    maxReminders: Number(process.env.MAX_REMINDERS ?? 3),
     // Videos up to this size are attached in WhatsApp; bigger ones are sent as a portal link.
     maxVideoMb: Number(process.env.WHATSAPP_MAX_VIDEO_MB || 16),
     cloud: {
