@@ -3,7 +3,7 @@
 #
 # The free plan sleeps after ~15 minutes without visitors and has no persistent disk, so the
 # database and uploads reset on every restart or deploy. The demo accounts and sample course are
-# re-created on each start (see dockerCommand). That's fine for testing with the WhatsApp simulator.
+# re-created on each start (npm run start:demo). That's fine for testing with the WhatsApp simulator.
 #
 # To keep data (needed for a real WhatsApp number): change plan to starter and uncomment the disk.
 services:
@@ -12,7 +12,7 @@ services:
     runtime: docker
     plan: free
     healthCheckPath: /healthz
-    dockerCommand: sh -c "npm run seed && npm start"
+    dockerCommand: npm run start:demo
     envVars:
       - key: NODE_ENV
         value: production
