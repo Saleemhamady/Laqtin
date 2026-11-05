@@ -33,6 +33,12 @@ By default `WHATSAPP_PROVIDER=mock`. Nothing is sent, and the portal shows a **W
 
 Run the tests with `npm test`.
 
+## Try it on Render (free)
+
+The repo includes a `render.yaml` Blueprint. In the Render dashboard, choose **New → Blueprint**, pick this repo and branch, and click **Apply**. You get a `https://laqtin-….onrender.com` link with the demo accounts already in place. The session secret is generated for you, and the public URL is picked up from Render automatically.
+
+The free plan sleeps after about 15 minutes without visitors and has no persistent disk, so data resets on every restart or deploy. To keep data, switch the plan to `starter` and enable the disk in `render.yaml`.
+
 ## Going live
 
 Copy `.env.example` to `.env` and fill it in. `BASE_URL` and a 32+ character `SESSION_SECRET` are required in production.

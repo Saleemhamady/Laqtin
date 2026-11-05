@@ -1,0 +1,32 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Dashboard → New → Blueprint → pick this repo. Render builds the Dockerfile and gives you a .onrender.com link.
+#
+# The free plan sleeps after ~15 minutes without visitors and has no persistent disk, so the
+# database and uploads reset on every restart or deploy. The demo accounts and sample course are
+# re-created on each start (see dockerCommand). That's fine for testing with the WhatsApp simulator.
+#
+# To keep data (needed for a real WhatsApp number): change plan to starter and uncomment the disk.
+services:
+  - type: web
+    name: laqtin
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    dockerCommand: sh -c "npm run seed && npm start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # BASE_URL is optional here: the app falls back to Render's RENDER_EXTERNAL_URL.
+      # Set it if you add a custom domain.
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: WHATSAPP_PROVIDER
+        value: mock
+      - key: ALLOW_TEACHER_SIGNUP
+        value: "true"
+    # disk:
+    #   name: laqtin-data
+    #   mountPath: /app/data
+    #   sizeGB: 1
+    # With a disk, also set UPLOAD_DIR=/app/data/uploads so uploads are kept too
+    # (Render allows one disk per service).

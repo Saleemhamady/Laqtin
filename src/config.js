@@ -7,7 +7,8 @@ export const config = {
   root,
   port: Number(process.env.PORT || 3000),
   // Public URL of the portal, used in links sent over WhatsApp.
-  baseUrl: (process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, ''),
+  // On Render, RENDER_EXTERNAL_URL is set automatically, so BASE_URL can be left blank there.
+  baseUrl: (process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, ''),
   env: process.env.NODE_ENV || 'development',
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-change-me',
   // When false, new accounts are always students; admins promote teachers.
@@ -55,5 +56,5 @@ if (config.env === 'production') {
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
     throw new Error('SESSION_SECRET must be set to a random string of at least 32 characters in production.');
   }
-  if (!process.env.BASE_URL) throw new Error('BASE_URL must be set in production (e.g. https://academy.example.com).');
+  if (!process.env.BASE_URL && !process.env.RENDER_EXTERNAL_URL) throw new Error('BASE_URL must be set in production (e.g. https://academy.example.com).');
 }

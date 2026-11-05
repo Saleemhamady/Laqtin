@@ -21,7 +21,7 @@ if (!one('SELECT id FROM courses WHERE title=?', 'Python Basics')) {
     'INSERT INTO courses (teacher_id, title, summary, description, color, published) VALUES (?,?,?,?,?,1)',
     teacher.id,
     'Python Basics',
-    'Write your first real programs in six bite-sized lessons.',
+    'Write your first real programs in three bite-sized lessons.',
     'A friendly introduction to programming with Python. Each lesson is a short video followed by two or three practice questions on WhatsApp.\n\nNo experience needed — just curiosity and 10 minutes a day.',
     '#0d7a5f'
   );
