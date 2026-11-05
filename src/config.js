@@ -12,6 +12,14 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-change-me',
   // When false, new accounts are always students; admins promote teachers.
   allowTeacherSignup: (process.env.ALLOW_TEACHER_SIGNUP ?? 'true') === 'true',
+  telegram: {
+    // From @BotFather. Leave empty to hide the Telegram option.
+    token: process.env.TELEGRAM_BOT_TOKEN || '',
+    // Bots can upload files up to 50 MB.
+    maxVideoMb: Number(process.env.TELEGRAM_MAX_VIDEO_MB || 50),
+    // Set to "mock" to try Telegram in the portal simulator without a bot.
+    mode: process.env.TELEGRAM_MODE || '',
+  },
   smtp: {
     url: process.env.SMTP_URL || '', // e.g. smtps://user:pass@smtp.example.com:465
     from: process.env.MAIL_FROM || 'Laqtin <no-reply@example.com>',

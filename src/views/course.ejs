@@ -45,16 +45,31 @@
           <% } else if (course.published) { %>
             <form method="post" action="/courses/<%= course.id %>/enroll">
               <input type="hidden" name="_csrf" value="<%= csrf %>">
-              <% if (user && !user.phone) { %>
-                <label class="field"><span>Your WhatsApp number</span><input type="tel" name="phone" placeholder="+971 50 123 4567" required autocomplete="tel"><span class="hint">Include your country code.</span></label>
-              <% } %>
+              <% if (tgProvider) { %>
+                <div class="field">
+                  <span class="label">Get your lessons on</span>
+                  <div class="choice-cards">
+                    <label class="choice-card"><input type="radio" name="channel" value="whatsapp" checked><strong class="row" style="gap:6px"><%- icon('whatsapp', 'wa-ico') %>WhatsApp</strong><span>A private group</span></label>
+                    <label class="choice-card"><input type="radio" name="channel" value="telegram"><strong class="row" style="gap:6px"><%- icon('telegram', 'tg-ico') %>Telegram</strong><span>Chat with our bot</span></label>
+                  </div>
+                </div>
+              <% } else { %><input type="hidden" name="channel" value="whatsapp"><% } %>
+              <div data-for-channel="whatsapp">
+                <% if (user && !user.phone) { %>
+                  <label class="field"><span>Your WhatsApp number</span><input type="tel" name="phone" placeholder="+971 50 123 4567" autocomplete="tel"><span class="hint">Include your country code.</span></label>
+                <% } else if (user) { %>
+                  <p class="hint" style="margin:-6px 0 14px">Lessons will go to <%= user.phone %> · <a href="/profile">change</a></p>
+                <% } %>
+              </div>
+              <div data-for-channel="telegram" hidden>
+                <p class="hint" style="margin:-6px 0 14px"><%= user && user.telegram_chat_id ? 'Lessons will go to your connected Telegram' + (user.telegram_username ? ' (@' + user.telegram_username + ')' : '') + '.' : 'After enrolling, tap “Connect Telegram” once to start.' %></p>
+              </div>
               <button class="btn primary block lg" type="submit">Enroll — it’s free</button>
             </form>
-            <% if (user && user.phone) { %><p class="hint" style="text-align:center">Lessons will go to <%= user.phone %> · <a href="/profile">change</a></p><% } %>
           <% } %>
           <hr class="divider">
           <div class="small stack" style="--gap:10px">
-            <div class="row" style="gap:10px; align-items:flex-start"><%- icon('whatsapp', 'wa-ico') %><span>A private WhatsApp group is created for you with your lessons.</span></div>
+            <div class="row" style="gap:10px; align-items:flex-start"><%- icon('whatsapp', 'wa-ico') %><span>Lessons arrive in a private WhatsApp group<%= tgProvider ? ' or a Telegram chat — your choice' : '' %>.</span></div>
             <div class="row" style="gap:10px; align-items:flex-start"><%- icon('poll', 'chip-check') %><span>Practice with polls and get feedback instantly.</span></div>
             <div class="row" style="gap:10px; align-items:flex-start"><%- icon('refresh', 'chip-check') %><span>Prefer the web? Watch and answer here — it all stays in sync.</span></div>
           </div>

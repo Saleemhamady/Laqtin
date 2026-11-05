@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { one, all, run } from '../db.js';
 import { courseWithTeacher, normalizePhone } from '../lib.js';
 import { requireUser, HttpError } from '../middleware.js';
-import { startJourney } from '../whatsapp/engine.js';
+import { startJourney, getProvider } from '../whatsapp/engine.js';
 
 const r = Router();
 
@@ -53,6 +53,7 @@ r.post('/courses/:id/enroll', requireUser, (req, res) => {
   const existing = one('SELECT * FROM enrollments WHERE user_id=? AND course_id=?', req.user.id, course.id);
   if (existing) return res.redirect(`/learn/course/${course.id}`);
 
+  const channel = req.body.channel === 'telegram' && getProvider('telegram') ? 'telegram' : 'whatsapp';
   let phone = req.user.phone;
   if (req.body.phone) {
     phone = normalizePhone(req.body.phone);
@@ -62,13 +63,17 @@ r.post('/courses/:id/enroll', requireUser, (req, res) => {
     }
     run('UPDATE users SET phone=? WHERE id=?', phone, req.user.id);
   }
-  if (!phone) {
+  if (channel === 'whatsapp' && !phone) {
     req.flash('error', 'Add your WhatsApp number to enroll — that’s where your lessons arrive.');
     return res.redirect(`/courses/${course.id}`);
   }
-  const { lastInsertRowid } = run('INSERT INTO enrollments (user_id, course_id) VALUES (?,?)', req.user.id, course.id);
+  const { lastInsertRowid } = run('INSERT INTO enrollments (user_id, course_id, channel) VALUES (?,?,?)', req.user.id, course.id, channel);
   startJourney(Number(lastInsertRowid));
-  req.flash('success', 'You’re in! Your first lesson is on its way to WhatsApp.');
+  const linked = channel === 'telegram' && one('SELECT telegram_chat_id FROM users WHERE id=?', req.user.id).telegram_chat_id;
+  req.flash(
+    'success',
+    channel === 'whatsapp' ? 'You’re in! Your first lesson is on its way to WhatsApp.' : linked ? 'You’re in! Your first lesson is on its way to Telegram.' : 'You’re in! Connect Telegram to get your first lesson.'
+  );
   res.redirect(`/learn/course/${course.id}`);
 });
 

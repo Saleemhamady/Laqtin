@@ -1,13 +1,15 @@
-<%# WhatsApp conversation mirror. JS fills it and keeps it live. %>
+<%# Chat mirror (WhatsApp or Telegram). JS fills it and keeps it live. %>
+<% const ch = typeof channel !== 'undefined' && channel ? channel : 'whatsapp'; const chProv = ch === 'telegram' ? tgProvider : waProvider; const sim = chProv && chProv.name === 'mock'; %>
+<% if (typeof interactive === 'undefined' || interactive === null) { interactive = Boolean(chProv && chProv.interactiveMirror); } %>
 <div class="card" style="overflow:hidden">
-  <div class="chat" data-chat="<%= enrollmentId %>" data-interactive="<%= interactive ? '1' : '' %>">
+  <div class="chat <%= ch === 'telegram' ? 'tg' : '' %>" data-chat="<%= enrollmentId %>" data-channel="<%= ch %>" data-interactive="<%= interactive ? '1' : '' %>" data-initial-state="<%= typeof initialState !== 'undefined' ? initialState : '' %>">
     <div class="chat-head">
       <span class="avatar"><%= initials(chatTitle) %></span>
-      <div style="flex:1; min-width:0"><strong><%= chatTitle %></strong><small><%= waProvider && waProvider.name === 'mock' ? 'WhatsApp simulator' : 'WhatsApp group' %></small></div>
-      <%- icon('whatsapp', 'wa-ico') %>
+      <div style="flex:1; min-width:0"><strong><%= chatTitle %></strong><small><%= ch === 'telegram' ? (sim ? 'Telegram simulator' : 'Telegram bot') : (sim ? 'WhatsApp simulator' : 'WhatsApp group') %></small></div>
+      <%- ch === 'telegram' ? icon('telegram', 'tg-ico') : icon('whatsapp', 'wa-ico') %>
     </div>
     <div class="chat-body" data-chat-body><div class="chat-empty">Loading conversation…</div></div>
     <div class="chat-foot"><span class="live-dot"></span><span data-chat-state>Live</span></div>
   </div>
 </div>
-<% if (interactive) { %><p class="hint" style="margin-top:10px">Simulator mode: tap a poll option to answer as if you were in WhatsApp.</p><% } %>
+<% if (interactive) { %><p class="hint" style="margin-top:10px">Simulator mode: tap a poll option to answer as if you were in <%= CHANNEL_LABEL[ch] %>.</p><% } %>

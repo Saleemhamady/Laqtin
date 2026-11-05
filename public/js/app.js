@@ -52,6 +52,18 @@
     sync();
   });
 
+  // Enroll form: show the right hint for WhatsApp vs Telegram.
+  $$('form').forEach((f) => {
+    const radios = $$('input[name=channel][type=radio]', f);
+    if (!radios.length) return;
+    const sync = () => {
+      const ch = radios.find((r) => r.checked)?.value || 'whatsapp';
+      $$('[data-for-channel]', f).forEach((el) => (el.hidden = el.dataset.forChannel !== ch));
+    };
+    radios.forEach((r) => r.addEventListener('change', sync));
+    sync();
+  });
+
   // File pickers show the chosen file and accept drag & drop.
   $$('[data-dropzone]').forEach((zone) => {
     const input = zone.querySelector('input[type=file]');
@@ -240,7 +252,7 @@
     stopped: 'Paused — resume anytime',
   };
 
-  const chats = $$('[data-chat]').map((el) => ({ el, id: el.dataset.chat, interactive: el.dataset.interactive === '1', last: 0, votes: new Map(), polls: [] }));
+  const chats = $$('[data-chat]').map((el) => ({ el, id: el.dataset.chat, channel: el.dataset.channel, initial: el.dataset.initialState, interactive: el.dataset.interactive === '1', last: 0, votes: new Map(), polls: [] }));
 
   function render(chat, messages, state) {
     const body = $('[data-chat-body]', chat.el);
@@ -276,20 +288,30 @@
     for (const el of chat.polls) {
       const m = el._poll;
       const voted = chat.votes.get(m.external_id);
-      const open = chat.interactive && !voted && m.ref === current;
+      // Telegram quizzes reveal the answer inside the poll itself; mirror that.
+      const quiz = chat.channel === 'telegram' && chat.results?.[m.ref];
+      const open = chat.interactive && !voted && !quiz && m.ref === current;
+      const cls = (o, i) => (quiz ? (i === quiz.correctIndex ? ' right' : i === quiz.selected ? ' wrongpick' : '') : voted === o ? ' chosen' : '');
       el.innerHTML =
-        `<div class="q">${fmt(m.body.name)}</div><div class="sel">Select one</div>` +
-        m.body.options.map((o, i) => `<${open ? 'button type="button"' : 'div'} class="opt${voted === o ? ' chosen' : ''}" data-opt="${i}"><span class="radio"></span>${esc(o)}</${open ? 'button' : 'div'}>`).join('') +
+        `<div class="q">${fmt(m.body.name)}</div><div class="sel">${quiz ? 'Quiz' : 'Select one'}</div>` +
+        m.body.options.map((o, i) => `<${open ? 'button type="button"' : 'div'} class="opt${cls(o, i)}" data-opt="${i}"><span class="radio"></span>${esc(o)}</${open ? 'button' : 'div'}>`).join('') +
+        (quiz && quiz.explanation ? `<div class="quiz-ex">💡 ${esc(quiz.explanation)}</div>` : '') +
         `<span class="time">${time(m.created_at)}</span>`;
     }
     if (!body.children.length) body.innerHTML = '<div class="chat-empty">Your WhatsApp messages will appear here.</div>';
     if (messages.length) body.scrollTop = body.scrollHeight;
-    if (state) $('[data-chat-state]', chat.el).textContent = state.wa_error ? `${STATE_TEXT.error}: ${state.wa_error}` : STATE_TEXT[state.wa_state] || 'Live';
+    if (state) {
+      const waitText = chat.channel === 'telegram' ? 'Waiting for you to connect Telegram' : STATE_TEXT.awaiting_join;
+      $('[data-chat-state]', chat.el).textContent = state.wa_error ? `${STATE_TEXT.error}: ${state.wa_error}` : state.wa_state === 'awaiting_join' ? waitText : STATE_TEXT[state.wa_state] || 'Live';
+      // Just connected (e.g. pressed Start in Telegram): refresh the page banners.
+      if (chat.initial === 'awaiting_join' && state.wa_state !== 'awaiting_join') location.reload();
+    }
   }
 
   async function poll(chat) {
     try {
       const data = await api(`/api/enrollments/${chat.id}/messages?after=${chat.last}`);
+      chat.results = data.results || {};
       render(chat, data.messages, data.state);
     } catch {
       /* offline — try again next tick */

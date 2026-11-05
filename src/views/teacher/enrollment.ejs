@@ -9,7 +9,7 @@
     <div class="row">
       <span class="badge <%= WA_STATE_TONE[e.wa_state] %>"><%= WA_STATE_LABEL[e.wa_state] %></span>
       <% if (e.wa_state === 'error' || e.wa_state === 'awaiting_join') { %>
-        <form method="post" action="/teach/enrollments/<%= e.id %>/retry"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn secondary sm"><%- icon('refresh') %>Retry WhatsApp</button></form>
+        <form method="post" action="/teach/enrollments/<%= e.id %>/retry"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn secondary sm"><%- icon('refresh') %>Retry <%= CHANNEL_LABEL[e.channel] %></button></form>
       <% } %>
     </div>
   </div>
@@ -28,7 +28,7 @@
         <div class="card">
           <div class="card-head">
             <h3><span class="faint"><%= i + 1 %>.</span> <%= r.lesson.title %></h3>
-            <span class="small muted"><%= r.progress.watched_at ? 'Watched ' + (r.progress.watched_via === 'whatsapp' ? 'on WhatsApp' : 'on web') : 'Not watched' %><% if (r.questions.length) { %> · <%= r.correct %>/<%= r.questions.length %> correct<% } %></span>
+            <span class="small muted"><%= r.progress.watched_at ? 'Watched ' + viaLabel(r.progress.watched_via) : 'Not watched' %><% if (r.questions.length) { %> · <%= r.correct %>/<%= r.questions.length %> correct<% } %></span>
           </div>
           <% if (r.questions.length) { %>
             <ul class="list">
@@ -36,7 +36,7 @@
                 <li>
                   <span class="num <%= a && a.is_correct ? 'done' : '' %>" style="<%= a && !a.is_correct ? 'background:var(--danger);border-color:var(--danger);color:#fff' : '' %>"><%- a ? icon(a.is_correct ? 'check' : 'x') : '–' %></span>
                   <div class="grow"><span class="title" style="white-space:normal"><%= q.prompt %></span>
-                    <span class="sub"><% if (a) { %>Answered <b><%= L[a.selected_index] %>. <%= q.options[a.selected_index] %></b> via <%= a.via %><% if (!a.is_correct) { %> · correct: <%= L[q.correct_index] %><% } %><% } else { %>Not answered<% } %></span></div>
+                    <span class="sub"><% if (a) { %>Answered <b><%= L[a.selected_index] %>. <%= q.options[a.selected_index] %></b> <%= viaLabel(a.via) %><% if (!a.is_correct) { %> · correct: <%= L[q.correct_index] %><% } %><% } else { %>Not answered<% } %></span></div>
                 </li>
               <% }) %>
             </ul>
@@ -44,7 +44,7 @@
         </div>
       <% }) %>
     </div>
-    <aside class="sticky"><%- include('../partials/chat', { enrollmentId: e.id, chatTitle: course.title + ' · ' + student.name.split(' ')[0], interactive: false }) %></aside>
+    <aside class="sticky"><%- include('../partials/chat', { enrollmentId: e.id, chatTitle: course.title + ' · ' + student.name.split(' ')[0], channel: e.channel, interactive: false }) %></aside>
   </div>
 </div>
 <%- include('../partials/foot') %>

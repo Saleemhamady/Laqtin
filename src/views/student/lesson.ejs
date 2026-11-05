@@ -32,11 +32,11 @@
 
       <% if (questions.length) { %>
         <section class="section" id="practice">
-          <div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Practice</h2><span class="small muted"><%= questions.length %> question<%= questions.length === 1 ? '' : 's' %> · also sent as WhatsApp polls</span></div>
+          <div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Practice</h2><span class="small muted"><%= questions.length %> question<%= questions.length === 1 ? '' : 's' %> · also sent as <%= enrollment ? CHANNEL_LABEL[enrollment.channel] : 'chat' %> polls</span></div>
           <div class="card">
             <% questions.forEach(function (q, qi) { const a = row && row.answers.get(q.id); %>
               <div class="quiz-q" data-question="<%= q.id %>" <%- preview ? 'data-preview' : '' %> data-correct="<%= preview ? q.correct_index : '' %>">
-                <div class="qn">Question <%= qi + 1 %><% if (a) { %><span class="badge <%= a.is_correct ? 'green' : 'red' %>"><%= a.is_correct ? 'Correct' : 'Incorrect' %></span><span class="faint" style="text-transform:none; letter-spacing:0; font-weight:400">answered <%= a.via === 'whatsapp' ? 'on WhatsApp' : 'here' %></span><% } %></div>
+                <div class="qn">Question <%= qi + 1 %><% if (a) { %><span class="badge <%= a.is_correct ? 'green' : 'red' %>"><%= a.is_correct ? 'Correct' : 'Incorrect' %></span><span class="faint" style="text-transform:none; letter-spacing:0; font-weight:400">answered <%= a.via === 'web' ? 'here' : viaLabel(a.via) %></span><% } %></div>
                 <div class="prompt"><%= q.prompt %></div>
                 <div class="options">
                   <% q.options.forEach(function (o, oi) {
@@ -74,7 +74,7 @@
         </ol>
       </div>
       <% if (enrollment && !preview) { %>
-        <div style="margin-top:20px"><%- include('../partials/chat', { enrollmentId: enrollment.id, chatTitle: course.title, interactive: waProvider && waProvider.interactiveMirror }) %></div>
+        <div style="margin-top:20px"><%- include('../partials/chat', { enrollmentId: enrollment.id, chatTitle: course.title, channel: enrollment.channel, interactive: null, initialState: enrollment.wa_state }) %></div>
       <% } %>
     </aside>
   </div>

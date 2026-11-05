@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT,
   avatar_url TEXT,
   onboarded INTEGER NOT NULL DEFAULT 1,
+  telegram_chat_id TEXT,
+  telegram_username TEXT,
+  telegram_link_token TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -77,7 +80,8 @@ CREATE TABLE IF NOT EXISTS enrollments (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  -- WhatsApp journey state
+  channel TEXT NOT NULL DEFAULT 'whatsapp', -- whatsapp | telegram
+  -- Chat journey state (for whichever channel the enrollment uses)
   wa_chat_id TEXT,
   wa_invite_link TEXT,
   wa_state TEXT NOT NULL DEFAULT 'pending', -- pending|awaiting_watch|quizzing|done|error
@@ -162,6 +166,11 @@ function migrate(d) {
   add('questions', 'explanation_url', 'TEXT');
   add('users', 'avatar_url', 'TEXT');
   add('users', 'onboarded', 'INTEGER NOT NULL DEFAULT 1');
+  add('users', 'telegram_chat_id', 'TEXT');
+  add('users', 'telegram_username', 'TEXT');
+  add('users', 'telegram_link_token', 'TEXT');
+  add('enrollments', 'channel', "TEXT NOT NULL DEFAULT 'whatsapp'");
+  d.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_tg_token ON users(telegram_link_token)');
 }
 
 export function getDb() {

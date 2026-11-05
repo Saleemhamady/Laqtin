@@ -18,7 +18,7 @@
             <p><%= e.teacher_name %></p>
             <div class="progress" style="margin-bottom:14px"><span style="width:<%= p.pct %>%"></span></div>
             <div class="foot">
-              <span class="badge <%= WA_STATE_TONE[e.wa_state] %>"><%= WA_STATE_LABEL[e.wa_state] %></span>
+              <span class="row" style="gap:6px"><%- e.channel === 'telegram' ? icon('telegram', 'tg-ico chip-check') : icon('whatsapp', 'wa-ico chip-check') %><span class="badge <%= WA_STATE_TONE[e.wa_state] %>"><%= e.channel === 'telegram' && e.wa_state === 'awaiting_join' ? 'Connect Telegram' : WA_STATE_LABEL[e.wa_state] %></span></span>
               <span><%= p.pct %>%</span>
             </div>
           </div>

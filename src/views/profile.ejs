@@ -32,7 +32,18 @@
           <% } %>
         </li>
       <% }) %>
-      <% if (!identities.length && !socialProviders.length) { %><li class="muted small">Social sign-in isn’t enabled on this academy.</li><% } %>
+      <% if (tgProvider) { %>
+        <li>
+          <span class="file-ico" style="background:#2aabee; color:#fff"><%- icon('telegram') %></span>
+          <div class="grow"><span class="title">Telegram</span><span class="sub"><%= user.telegram_chat_id ? 'Lessons can be delivered here' + (user.telegram_username ? ' · @' + user.telegram_username : '') : 'Not connected' %></span></div>
+          <% if (user.telegram_chat_id) { %>
+            <form method="post" action="/telegram/disconnect" data-confirm="Disconnect Telegram? Courses delivered there will pause."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn danger sm">Disconnect</button></form>
+          <% } else { %>
+            <a class="btn secondary sm" href="/telegram/connect" target="_blank" rel="noopener">Connect</a>
+          <% } %>
+        </li>
+      <% } %>
+      <% if (!identities.length && !socialProviders.length && !tgProvider) { %><li class="muted small">Social sign-in isn’t enabled on this academy.</li><% } %>
     </ul>
   </div>
   <div class="card section">

@@ -21,7 +21,7 @@
           <% attention.forEach(function (a) { %>
             <li>
               <span class="avatar"><%= initials(a.name) %></span>
-              <div class="grow"><span class="title"><%= a.name %> · <%= a.title %></span><span class="sub"><%= a.wa_state === 'error' ? a.wa_error : 'Waiting for the student to join the group' %></span></div>
+              <div class="grow"><span class="title"><%= a.name %> · <%= a.title %></span><span class="sub"><%= a.wa_state === 'error' ? a.wa_error : (a.channel === 'telegram' ? 'Hasn’t connected Telegram yet' : 'Hasn’t joined the WhatsApp group yet') %></span></div>
               <form method="post" action="/admin/enrollments/<%= a.id %>/retry"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn secondary sm"><%- icon('refresh') %>Retry</button></form>
             </li>
           <% }) %>
@@ -40,6 +40,9 @@
           <ol class="small muted" style="padding-left:18px; margin:14px 0 0"><li>Open WhatsApp on the academy phone</li><li>Settings → Linked devices → Link a device</li><li>Scan this code</li></ol>
         <% } %>
       </div>
+      <div class="card-head" style="border-top:1px solid var(--line-2)"><h2 class="row" style="gap:8px"><%- icon('telegram', 'tg-ico') %>Telegram</h2>
+        <span class="badge <%= !tgStatus ? '' : tgStatus.state === 'ready' ? 'green' : 'red' %>"><%= !tgStatus ? 'Off' : tgStatus.state === 'ready' ? 'Connected' : tgStatus.state %></span></div>
+      <div class="card-body"><p class="small muted" style="margin:0"><%= tgStatus ? tgStatus.detail : 'Set TELEGRAM_BOT_TOKEN (create a bot with @BotFather) to let students choose Telegram.' %></p></div>
     </aside>
   </div>
 </div>

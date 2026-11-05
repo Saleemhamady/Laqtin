@@ -1,5 +1,7 @@
 import { Router } from 'express';
-import { one, all } from '../db.js';
+import crypto from 'node:crypto';
+import { one, all, run } from '../db.js';
+import { config } from '../config.js';
 import { courseProgress, courseWithTeacher, videoEmbed } from '../lib.js';
 import { requireUser, HttpError, fileKind } from '../middleware.js';
 import * as engine from '../whatsapp/engine.js';
@@ -68,6 +70,35 @@ r.get('/learn/lesson/:id', requireUser, (req, res) => {
   });
 });
 
+// Telegram: give the user a one-time link token and send them to the bot.
+r.get('/telegram/connect', requireUser, (req, res) => {
+  const tg = engine.getProvider('telegram');
+  if (!tg) throw new HttpError(404, 'Telegram isn’t enabled on this academy.');
+  let { telegram_link_token: token } = one('SELECT telegram_link_token FROM users WHERE id=?', req.user.id);
+  if (!token) {
+    token = crypto.randomBytes(18).toString('base64url');
+    run('UPDATE users SET telegram_link_token=? WHERE id=?', token, req.user.id);
+  }
+  const url = tg.linkUrl(token);
+  if (!url) {
+    req.flash('error', 'The Telegram bot isn’t connected right now. Please try again in a minute.');
+    return res.redirect(req.get('referer')?.startsWith(config.baseUrl) ? req.get('referer') : '/learn');
+  }
+  res.redirect(url);
+});
+
+r.post('/telegram/disconnect', requireUser, (req, res) => {
+  run('UPDATE users SET telegram_chat_id=NULL, telegram_username=NULL, telegram_link_token=NULL WHERE id=?', req.user.id);
+  // Courses delivered on Telegram wait for the student to connect again.
+  run(
+    `UPDATE enrollments SET wa_chat_id=NULL, wa_state='awaiting_join', wa_error=NULL
+      WHERE user_id=? AND channel='telegram' AND wa_state NOT IN ('done')`,
+    req.user.id
+  );
+  req.flash('success', 'Telegram disconnected.');
+  res.redirect('/profile');
+});
+
 r.post('/learn/course/:id/pause', requireUser, (req, res) => {
   const e = myEnrollment(req.user.id, Number(req.params.id));
   engine.stop(e.id, 'web');
@@ -112,22 +143,34 @@ r.post('/api/questions/:id/answer', requireUser, (req, res) => {
 r.get('/api/enrollments/:id/messages', requireUser, (req, res) => {
   const e = visibleEnrollment(req.user, Number(req.params.id));
   const after = Number(req.query.after || 0);
-  const messages = all('SELECT id, direction, kind, body, ref, external_id, created_at FROM wa_messages WHERE enrollment_id=? AND id>? ORDER BY id', e.id, after).map((m) => ({
-    ...m,
-    body: JSON.parse(m.body),
-  }));
-  const fresh = one('SELECT wa_state, wa_error, current_question_id, current_lesson_id FROM enrollments WHERE id=?', e.id);
-  res.json({ messages, state: fresh });
+  // Quiz results are attached only once answered, so the mirror never leaks answers.
+  const answered = new Map(
+    all(
+      `SELECT a.question_id, a.selected_index, q.correct_index, q.explanation FROM answers a JOIN questions q ON q.id=a.question_id WHERE a.enrollment_id=?`,
+      e.id
+    ).map((a) => [a.question_id, a])
+  );
+  // Re-send polls (after=0) so verdicts show up on polls the page already has.
+  const messages = all('SELECT id, direction, kind, body, ref, external_id, created_at FROM wa_messages WHERE enrollment_id=? AND id>? ORDER BY id', e.id, after).map((m) => {
+    const out = { ...m, body: JSON.parse(m.body) };
+    const qid = m.ref?.startsWith('question:') && Number(m.ref.slice(9));
+    const a = qid && answered.get(qid);
+    if (a) out.result = { correctIndex: a.correct_index, selected: a.selected_index, explanation: a.explanation };
+    return out;
+  });
+  const results = Object.fromEntries([...answered].map(([qid, a]) => [`question:${qid}`, { correctIndex: a.correct_index, selected: a.selected_index, explanation: a.explanation }]));
+  const fresh = one('SELECT wa_state, wa_error, current_question_id, current_lesson_id, channel FROM enrollments WHERE id=?', e.id);
+  res.json({ messages, state: fresh, results });
 });
 
 // Simulator only: tapping a poll option in the portal's WhatsApp preview.
 r.post('/api/enrollments/:id/simulate-vote', requireUser, async (req, res) => {
-  if (!engine.getProvider()?.interactiveMirror) throw new HttpError(400, 'Only available in simulator mode');
   const e = visibleEnrollment(req.user, Number(req.params.id));
+  if (!engine.getProvider(e.channel)?.interactiveMirror) throw new HttpError(400, 'Only available in simulator mode');
   if (e.user_id !== req.user.id) throw new HttpError(403, 'Only the student can vote');
   const msg = one(`SELECT * FROM wa_messages WHERE id=? AND enrollment_id=? AND kind='poll'`, Number(req.body.messageId), e.id);
   if (!msg) throw new HttpError(404, 'Poll not found');
-  await engine.handleInbound({ type: 'vote', pollId: msg.external_id, optionIndex: Number(req.body.optionIndex) });
+  await engine.handleInbound({ type: 'vote', channel: e.channel, pollId: msg.external_id, optionIndex: Number(req.body.optionIndex) });
   res.json({ ok: true });
 });
 

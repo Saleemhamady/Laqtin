@@ -1,4 +1,6 @@
-// The learning journey that runs inside WhatsApp, independent of the provider.
+// The learning journey that runs inside a chat app (WhatsApp or Telegram),
+// independent of the provider. Each enrollment has a `channel`; the wa_* columns
+// hold the journey state for whichever channel it uses.
 //
 //   enroll -> chat created (group) -> welcome -> lesson 1 video + "I watched it" poll
 //          -> watched (WhatsApp poll OR portal player) -> question polls one by one
@@ -11,15 +13,19 @@ import { config } from '../config.js';
 
 const LETTERS = 'ABCDEFGHIJKL';
 const queues = new Map();
-let provider = null;
+const providers = {}; // channel -> provider
 const listeners = new Set();
 
-export function setProvider(p) {
-  provider = p;
+export function setProvider(p, channel = 'whatsapp') {
+  providers[channel] = p;
 }
-export function getProvider() {
-  return provider;
+export function getProvider(channel = 'whatsapp') {
+  return providers[channel] || null;
 }
+export const channels = () => Object.keys(providers);
+const prov = (e) => providers[e.channel || 'whatsapp'];
+const maxVideoBytes = (p) => (p?.maxVideoMb ?? config.whatsapp.maxVideoMb) * 1024 * 1024;
+export const CHANNEL_LABEL = { whatsapp: 'WhatsApp', telegram: 'Telegram' };
 /** Subscribe to engine activity (used by tests and logs). */
 export function onActivity(fn) {
   listeners.add(fn);
@@ -69,20 +75,21 @@ function log(enrollmentId, direction, kind, body, { ref = null, externalId = nul
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function pace() {
-  const ms = config.whatsapp.sendDelayMs ?? (provider?.name === 'mock' ? 0 : 1500);
+async function pace(e) {
+  const p = prov(e);
+  const ms = config.whatsapp.sendDelayMs ?? p?.sendDelayMs ?? (p?.name === 'mock' ? 0 : 1500);
   if (ms > 0) await sleep(ms);
 }
 
 async function say(e, text) {
-  await pace();
-  const r = await provider.sendText(e.wa_chat_id, text);
+  await pace(e);
+  const r = await prov(e).sendText(e.wa_chat_id, text);
   log(e.id, 'out', 'text', { text }, { externalId: r?.id });
 }
 
-async function poll(e, name, options, ref) {
-  await pace();
-  const r = await provider.sendPoll(e.wa_chat_id, { name: name.slice(0, 255), options });
+async function poll(e, name, options, ref, quiz = null) {
+  await pace(e);
+  const r = await prov(e).sendPoll(e.wa_chat_id, { name: name.slice(0, 255), options, ...(quiz || {}) });
   log(e.id, 'out', 'poll', { name, options }, { ref, externalId: r.id });
 }
 
@@ -133,10 +140,10 @@ async function deliverLesson(e, lesson) {
     (lesson.description ? `\n\n${lesson.description}` : '') +
     `\n\n▶️ Watch it here: ${lessonLink(lesson)}`;
 
-  const smallFile = lesson.video_file && lesson.video_size && lesson.video_size <= config.whatsapp.maxVideoMb * 1024 * 1024;
-  if (smallFile && provider.sendVideo) {
-    await pace();
-    const r = await provider.sendVideo(e.wa_chat_id, {
+  const smallFile = lesson.video_file && lesson.video_size && lesson.video_size <= maxVideoBytes(prov(e));
+  if (smallFile && prov(e).sendVideo) {
+    await pace(e);
+    const r = await prov(e).sendVideo(e.wa_chat_id, {
       filePath: `${config.uploadDir}/${lesson.video_file}`,
       url: `${config.baseUrl}/uploads/${lesson.video_file}`,
       caption,
@@ -170,7 +177,7 @@ async function askNext(e) {
   const q = questions[nextIdx];
   setState(e.id, { current_question_id: q.id, wa_state: 'quizzing' });
   const options = q.options.map((o, i) => `${LETTERS[i]}. ${o}`.slice(0, 100));
-  await poll(e, `❓ Q${nextIdx + 1}/${questions.length}: ${q.prompt}`, options, `question:${q.id}`);
+  await poll(e, `❓ Q${nextIdx + 1}/${questions.length}: ${q.prompt}`, options, `question:${q.id}`, { correctIndex: q.correct_index, explanation: q.explanation });
 }
 
 async function finishLesson(e, questions) {
@@ -215,7 +222,9 @@ async function welcomeAndStart(e) {
       `Here's how it works:\n1️⃣ I send you a lesson video\n2️⃣ Tap "I watched it" when you're done\n3️⃣ Answer a few quick polls and get instant feedback\n\n` +
       `${n} lesson${n === 1 ? '' : 's'} ahead. Everything stays in sync with your portal: ${config.baseUrl}/learn/course/${course.id}`
   );
-  await deliverLesson(enrollment(e.id), lessonsOf(course.id)[0]);
+  // Resume where they were (e.g. after reconnecting Telegram), else lesson 1.
+  const current = e.current_lesson_id && one('SELECT * FROM lessons WHERE id=?', e.current_lesson_id);
+  await deliverLesson(enrollment(e.id), current || lessonsOf(course.id)[0]);
 }
 
 // ---------- public API ----------
@@ -225,13 +234,15 @@ export function startJourney(enrollmentId) {
   return enqueue(enrollmentId, async () => {
     let e = enrollment(enrollmentId);
     if (!e || (e.wa_chat_id && e.wa_state !== 'error')) return;
-    if (!provider) throw new Error('WhatsApp is not configured');
+    const p = prov(e);
+    if (!p) throw new Error(`${CHANNEL_LABEL[e.channel] || e.channel} is not configured`);
     const user = one('SELECT * FROM users WHERE id=?', e.user_id);
     const course = one('SELECT * FROM courses WHERE id=?', e.course_id);
-    if (!user.phone) throw new Error('Student has no WhatsApp number on their profile');
+    if (p.needsPhone !== false && !user.phone) throw new Error('Student has no WhatsApp number on their profile');
 
     if (!e.wa_chat_id) {
-      const chat = await provider.createChat({
+      const chat = await p.createChat({
+        user,
         phone: user.phone,
         name: user.name,
         title: `${course.title} · ${user.name.split(' ')[0]}`.slice(0, 100),
@@ -272,7 +283,7 @@ export function watched(enrollmentId, lessonId, via) {
     if (!e.wa_chat_id || e.wa_state !== 'awaiting_watch' || e.current_lesson_id !== lessonId) return;
     const n = questionsOf(lessonId).length;
     if (via === 'web' && first) await say(e, `👀 I see you finished the lesson on the portal.${n ? ' Time to practice!' : ''}`);
-    else if (via === 'whatsapp' && n) await say(e, `Great! Here ${n === 1 ? 'is 1 question' : `are ${n} quick questions`} 👇`);
+    else if (via !== 'web' && n) await say(e, `Great! Here ${n === 1 ? 'is 1 question' : `are ${n} quick questions`} 👇`);
     await askNext(e);
   });
 }
@@ -287,7 +298,7 @@ export function answer(enrollmentId, questionId, selectedIndex, via) {
   enqueue(enrollmentId, async () => {
     const e = enrollment(enrollmentId);
     if (!e.wa_chat_id) return;
-    if (via === 'whatsapp') {
+    if (via !== 'web') {
       if (!isNew) {
         await say(e, `You already answered that one — your first answer (${LETTERS[a.selected_index]}) counts.`);
         return;
@@ -301,26 +312,42 @@ export function answer(enrollmentId, questionId, selectedIndex, via) {
   return result;
 }
 
-export function feedbackText(q, a) {
+export function feedbackText(q, a, p = providers.whatsapp) {
   const right = `${LETTERS[q.correct_index]}. ${q.options[q.correct_index]}`;
   let text = a.is_correct ? `✅ *Correct!*` : `❌ *Not quite.* The right answer is *${right}*.`;
   if (q.explanation) text += `\n💡 ${q.explanation}`;
   if (q.explanation_url) text += `\n🔗 Explanation: ${q.explanation_url}`;
-  if (q.explanation_file && !sendsExplanationVideo(q)) text += `\n📎 Explanation: ${config.baseUrl}/uploads/${q.explanation_file}`;
+  if (q.explanation_file && !sendsExplanationVideo(q, p)) text += `\n📎 Explanation: ${config.baseUrl}/uploads/${q.explanation_file}`;
   return text;
 }
 
 const isVideo = (f) => /\.(mp4|m4v|mov|webm)$/i.test(f || '');
-function sendsExplanationVideo(q) {
-  return Boolean(provider?.sendVideo && isVideo(q.explanation_file) && q.explanation_file_size && q.explanation_file_size <= config.whatsapp.maxVideoMb * 1024 * 1024);
+function sendsExplanationVideo(q, p) {
+  return Boolean(p?.sendVideo && isVideo(q.explanation_file) && q.explanation_file_size && q.explanation_file_size <= maxVideoBytes(p));
+}
+
+/** Native quiz polls (Telegram) already show right/wrong + a short explanation. */
+export const NATIVE_EXPLANATION_MAX = 200;
+function extraExplanation(q, p) {
+  const lines = [];
+  if (q.explanation && q.explanation.length > NATIVE_EXPLANATION_MAX) lines.push(`💡 ${q.explanation}`);
+  if (q.explanation_url) lines.push(`🔗 Explanation: ${q.explanation_url}`);
+  if (q.explanation_file && !sendsExplanationVideo(q, p)) lines.push(`📎 Explanation: ${config.baseUrl}/uploads/${q.explanation_file}`);
+  return lines.join('\n');
 }
 
 async function sendFeedback(e, q, a) {
-  await say(e, feedbackText(q, a));
-  if (sendsExplanationVideo(q)) {
+  const p = prov(e);
+  if (p.nativeQuiz) {
+    const extra = extraExplanation(q, p);
+    if (extra) await say(e, extra);
+  } else {
+    await say(e, feedbackText(q, a, p));
+  }
+  if (sendsExplanationVideo(q, p)) {
     const caption = '🎬 Explanation';
-    await pace();
-    const r = await provider.sendVideo(e.wa_chat_id, {
+    await pace(e);
+    const r = await p.sendVideo(e.wa_chat_id, {
       filePath: `${config.uploadDir}/${q.explanation_file}`,
       url: `${config.baseUrl}/uploads/${q.explanation_file}`,
       caption,
@@ -330,40 +357,82 @@ async function sendFeedback(e, q, a) {
 }
 
 /**
- * Events coming from the provider:
- *   { type: 'vote', pollId, optionIndex }  a student voted in a poll
+ * Events coming from a provider (evt.channel says which one; defaults to whatsapp):
+ *   { type: 'vote', pollId, optionIndex }  a student voted in a poll / tapped a button
  *   { type: 'joined', chatId }             the student joined / opened the chat
+ *   { type: 'start', chatId, payload, username }  Telegram /start <link token>
  *   { type: 'text', chatId, text }         free text from the student
+ *   { type: 'left', chatId }               the student left the group
  */
 export async function handleInbound(evt) {
+  const channel = evt.channel || 'whatsapp';
   if (evt.type === 'vote') {
-    const msg = one(`SELECT * FROM wa_messages WHERE external_id=? AND kind='poll'`, evt.pollId);
+    const msg = one(
+      `SELECT w.* FROM wa_messages w JOIN enrollments e ON e.id=w.enrollment_id WHERE w.external_id=? AND w.kind='poll' AND e.channel=?`,
+      evt.pollId, channel
+    );
     if (!msg) return;
     const body = JSON.parse(msg.body);
     log(msg.enrollment_id, 'in', 'vote', { option: body.options[evt.optionIndex], pollId: evt.pollId });
     const [kind, id] = msg.ref.split(':');
-    if (kind === 'watch') return watched(msg.enrollment_id, Number(id), 'whatsapp');
-    if (kind === 'question') return answer(msg.enrollment_id, Number(id), evt.optionIndex, 'whatsapp');
+    if (kind === 'watch') return watched(msg.enrollment_id, Number(id), channel);
+    if (kind === 'question') return answer(msg.enrollment_id, Number(id), evt.optionIndex, channel);
   }
+  if (evt.type === 'start') return linkTelegram(evt);
   if (evt.type === 'joined') {
-    const waiting = all(`SELECT * FROM enrollments WHERE wa_chat_id=? AND wa_state='awaiting_join'`, evt.chatId);
+    const waiting = all(`SELECT * FROM enrollments WHERE wa_chat_id=? AND channel=? AND wa_state='awaiting_join'`, evt.chatId, channel);
     for (const e of waiting) {
       setState(e.id, { wa_state: 'pending' });
       enqueue(e.id, () => welcomeAndStart(enrollment(e.id)));
     }
   }
   if (evt.type === 'text') {
-    const e = one(`SELECT * FROM enrollments WHERE wa_chat_id=? ORDER BY id DESC LIMIT 1`, evt.chatId);
-    if (!e) return;
-    log(e.id, 'in', 'text', { text: evt.text });
-    const cmd = evt.text.trim().toUpperCase();
-    if (['STOP', 'UNSUBSCRIBE', 'PAUSE'].includes(cmd)) return stop(e.id, 'whatsapp');
-    if (['START', 'RESUME', 'CONTINUE'].includes(cmd)) return resume(e.id);
+    const cmd = evt.text.trim().replace(/^\//, '').toUpperCase();
+    // A chat can carry several courses (Telegram, Cloud API): commands apply to all of them.
+    const list = all(`SELECT * FROM enrollments WHERE wa_chat_id=? AND channel=? ORDER BY id DESC`, evt.chatId, channel);
+    if (!list.length) return;
+    log(list[0].id, 'in', 'text', { text: evt.text });
+    if (['STOP', 'UNSUBSCRIBE', 'PAUSE'].includes(cmd)) for (const e of list) stop(e.id, channel);
+    if (['START', 'RESUME', 'CONTINUE'].includes(cmd)) for (const e of list) resume(e.id);
   }
   if (evt.type === 'left') {
-    for (const e of all(`SELECT * FROM enrollments WHERE wa_chat_id=? AND wa_state NOT IN ('done','stopped')`, evt.chatId)) {
-      setState(e.id, { wa_state: 'stopped', wa_error: 'The student left the WhatsApp group.' });
+    for (const e of all(`SELECT * FROM enrollments WHERE wa_chat_id=? AND channel=? AND wa_state NOT IN ('done','stopped')`, evt.chatId, channel)) {
+      setState(e.id, { wa_state: 'stopped', wa_error: `The student left the ${CHANNEL_LABEL[channel]} chat.` });
     }
+  }
+}
+
+/**
+ * Telegram deep link: t.me/<bot>?start=<token>. Links the Telegram chat to the
+ * Laqtin user that owns the token, then starts any journeys waiting for it.
+ */
+async function linkTelegram(evt) {
+  const p = providers.telegram;
+  if (!p) return;
+  const token = String(evt.payload || '').trim();
+  let user = token ? one('SELECT * FROM users WHERE telegram_link_token=?', token) : null;
+  if (!user) user = one('SELECT * FROM users WHERE telegram_chat_id=?', String(evt.chatId));
+  if (!user) {
+    await p.sendText(evt.chatId, `👋 This is the Laqtin academy bot.\nTo get your lessons here, open your course on ${config.baseUrl} and tap *Connect Telegram*.`);
+    return;
+  }
+  const other = one('SELECT id FROM users WHERE telegram_chat_id=? AND id<>?', String(evt.chatId), user.id);
+  if (other) run('UPDATE users SET telegram_chat_id=NULL, telegram_username=NULL WHERE id=?', other.id);
+  run('UPDATE users SET telegram_chat_id=?, telegram_username=? WHERE id=?', String(evt.chatId), evt.username || null, user.id);
+
+  const waiting = all(`SELECT * FROM enrollments WHERE user_id=? AND channel='telegram' AND wa_state IN ('awaiting_join','error','pending')`, user.id);
+  if (!waiting.length) {
+    const paused = all(`SELECT * FROM enrollments WHERE user_id=? AND channel='telegram' AND wa_state='stopped'`, user.id);
+    if (paused.length) {
+      for (const e of paused) resume(e.id);
+      return;
+    }
+    await p.sendText(evt.chatId, `✅ Telegram connected, ${user.name.split(' ')[0]}! Enroll in a course on ${config.baseUrl}/courses and choose Telegram to learn here.`);
+    return;
+  }
+  for (const e of waiting) {
+    setState(e.id, { wa_chat_id: String(evt.chatId), wa_state: 'pending', wa_error: null });
+    enqueue(e.id, () => welcomeAndStart(enrollment(e.id)));
   }
 }
 
@@ -372,13 +441,13 @@ export function stop(enrollmentId, via = 'web') {
   const e = enrollment(enrollmentId);
   if (!e || e.wa_state === 'stopped' || e.wa_state === 'done') return;
   setState(e.id, { wa_state: 'stopped', wa_error: null });
-  if (!e.wa_chat_id || !provider) return;
+  if (!e.wa_chat_id || !prov(e)) return;
   return enqueue(
     e.id,
     () =>
       say(
         enrollment(e.id),
-        `⏸️ Paused — I won't send more messages${via === 'web' ? '' : ' here'}. Reply *START* or use the portal whenever you want to continue: ${config.baseUrl}/learn/course/${e.course_id}`
+        `⏸️ Paused *${one('SELECT title FROM courses WHERE id=?', e.course_id).title}* — I won't send more messages${via === 'web' ? '' : ' here'}. Reply *START* or use the portal whenever you want to continue: ${config.baseUrl}/learn/course/${e.course_id}`
       ),
     { evenIfStopped: true }
   );
@@ -413,7 +482,7 @@ export function recoverInterrupted() {
  */
 export async function sendReminders() {
   const { reminderHours: hours, maxReminders } = config.whatsapp;
-  if (!provider || !hours) return 0;
+  if (!hours) return 0;
   const due = all(
     `SELECT e.* FROM enrollments e
       WHERE e.wa_state IN ('awaiting_watch','quizzing') AND e.wa_chat_id IS NOT NULL AND e.nudge_count < ?

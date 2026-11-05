@@ -20,9 +20,10 @@ r.get('/', async (req, res) => {
       (SELECT COUNT(*) FROM wa_messages) AS messages`);
   const attention = all(
     `SELECT e.*, u.name, u.phone, c.title FROM enrollments e JOIN users u ON u.id=e.user_id JOIN courses c ON c.id=e.course_id
-      WHERE e.wa_state IN ('error','awaiting_join') ORDER BY e.id DESC LIMIT 50`
+      WHERE e.wa_state = 'error' OR (e.wa_state = 'awaiting_join' AND e.created_at < datetime('now','-1 day')) ORDER BY e.id DESC LIMIT 50`
   );
-  res.render('admin/index', { title: 'Admin', provider, status, qr, stats, attention });
+  const tg = engine.getProvider('telegram');
+  res.render('admin/index', { title: 'Admin', provider, status, qr, stats, attention, tg, tgStatus: tg?.status() || null });
 });
 
 r.get('/status.json', async (req, res) => {

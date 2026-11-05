@@ -62,12 +62,12 @@
         <% if (course.published) { %><code class="small"><%= baseUrl %>/courses/<%= course.id %></code><% } %></div>
       <% } else { %>
         <div class="table-wrap"><table>
-          <thead><tr><th>Student</th><th>WhatsApp</th><th>Progress</th><th>Score</th><th>Last activity</th><th></th></tr></thead>
+          <thead><tr><th>Student</th><th>Chat</th><th>Progress</th><th>Score</th><th>Last activity</th><th></th></tr></thead>
           <tbody>
             <% students.forEach(function (s) { %>
               <tr>
                 <td><div class="row" style="gap:10px; flex-wrap:nowrap"><span class="avatar"><%= initials(s.name) %></span><div><a href="/teach/enrollments/<%= s.id %>" style="color:var(--ink); font-weight:550"><%= s.name %></a><div class="small muted"><%= s.phone || s.email %></div></div></div></td>
-                <td><span class="badge <%= WA_STATE_TONE[s.wa_state] %>" title="<%= s.wa_error || '' %>"><%= WA_STATE_LABEL[s.wa_state] %></span></td>
+                <td><span class="row" style="gap:6px; flex-wrap:nowrap"><span title="<%= CHANNEL_LABEL[s.channel] %>"><%- s.channel === 'telegram' ? icon('telegram', 'tg-ico chip-check') : icon('whatsapp', 'wa-ico chip-check') %></span><span class="badge <%= WA_STATE_TONE[s.wa_state] %>" title="<%= s.wa_error || '' %>"><%= WA_STATE_LABEL[s.wa_state] %></span></span></td>
                 <td><div class="row" style="gap:10px; flex-wrap:nowrap"><div class="progress"><span style="width:<%= s.progress.pct %>%"></span></div><span class="small muted"><%= s.progress.done %>/<%= s.progress.lessons.length %></span></div></td>
                 <td><%= s.progress.scorePct === null ? '—' : s.progress.scorePct + '%' %></td>
                 <td class="small muted nowrap"><%= s.last_activity ? s.last_activity.slice(0, 16).replace('T', ' ') : '—' %></td>

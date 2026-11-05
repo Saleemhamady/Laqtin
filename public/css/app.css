@@ -278,6 +278,10 @@ td .progress { width: 120px; }
 .poll .opt .radio { width: 18px; height: 18px; border-radius: 999px; border: 2px solid #b3bcc2; flex: none; }
 .poll .opt.chosen .radio { border-color: #25a366; background: #25a366; box-shadow: inset 0 0 0 3px #fff; }
 .poll button.opt { cursor: pointer; }
+.poll .opt.right .radio { border-color: #22a06b; background: #22a06b; box-shadow: inset 0 0 0 3px #fff; }
+.poll .opt.right { font-weight: 600; }
+.poll .opt.wrongpick .radio { border-color: #e5484d; background: #e5484d; box-shadow: inset 0 0 0 3px #fff; }
+.poll .quiz-ex { margin-top: 8px; padding: 8px 10px; background: #f5f7f8; border-radius: 6px; font-size: .82rem; color: var(--ink-2); }
 .poll button.opt:hover .radio { border-color: #25a366; }
 .poll .opt[disabled] { cursor: default; }
 .chat-foot { background: #f6f5f3; border-top: 1px solid rgba(0,0,0,.06); padding: 10px 14px; font-size: .78rem; color: var(--muted); display: flex; gap: 8px; align-items: center; }
@@ -373,6 +377,7 @@ details[open] > summary .chev { transform: rotate(180deg); }
 .qr { background: #fff; padding: 12px; border-radius: var(--radius); border: 1px solid var(--line); display: inline-block; }
 .inline { display: inline; }
 .wa-ico { color: #25d366; }
+.tg-ico { color: #2aabee; }
 .chip-check { color: var(--success); width: 16px; height: 16px; }
 .prose { color: var(--ink-2); }
 .prose p:last-child { margin-bottom: 0; }

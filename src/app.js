@@ -6,7 +6,7 @@ import helmet from 'helmet';
 import cookieSession from 'cookie-session';
 import { config } from './config.js';
 import { one } from './db.js';
-import { getProvider } from './whatsapp/engine.js';
+import { getProvider, CHANNEL_LABEL } from './whatsapp/engine.js';
 import { initials, WA_STATE_LABEL, WA_STATE_TONE } from './lib.js';
 import { icon } from './icons.js';
 import authRoutes from './routes/auth.js';
@@ -78,7 +78,7 @@ export function createApp() {
 
   // Current user, flash messages, CSRF token
   app.use((req, res, next) => {
-    req.user = req.session.uid ? one('SELECT id, name, email, role, phone, avatar_url, onboarded FROM users WHERE id=?', req.session.uid) : null;
+    req.user = req.session.uid ? one('SELECT id, name, email, role, phone, avatar_url, onboarded, telegram_chat_id, telegram_username FROM users WHERE id=?', req.session.uid) : null;
     if (req.session.uid && !req.user) req.session = null;
     if (req.session && !req.session.csrf) req.session.csrf = crypto.randomBytes(18).toString('base64url');
     res.locals.user = req.user;
@@ -91,6 +91,9 @@ export function createApp() {
     res.locals.WA_STATE_LABEL = WA_STATE_LABEL;
     res.locals.WA_STATE_TONE = WA_STATE_TONE;
     res.locals.waProvider = getProvider();
+    res.locals.tgProvider = getProvider('telegram');
+    res.locals.CHANNEL_LABEL = CHANNEL_LABEL;
+    res.locals.viaLabel = (v) => (v === 'web' ? 'on the portal' : `on ${CHANNEL_LABEL[v] || v}`);
     res.locals.baseUrl = config.baseUrl;
     req.flash = (type, text) => (req.session.flash = { type, text });
     next();

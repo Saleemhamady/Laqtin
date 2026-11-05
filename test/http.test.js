@@ -180,6 +180,25 @@ test('teachers author lessons and questions with explanation files', async () =>
   assert.ok(teacher.id);
 });
 
+test('students can choose Telegram at enrollment (no phone needed)', async () => {
+  const { createMockProvider } = await import('../src/whatsapp/providers/mock.js');
+  engine.setProvider(createMockProvider({ channel: 'telegram' }), 'telegram');
+  const teacher = makeUser('teacher');
+  const course = makeCourse(teacher.id);
+  const student = makeUser('student', { email: 'tg@test.dev', phone: null });
+  const b = browser();
+  await signIn(b, 'tg@test.dev');
+  const page = await b.req(`/courses/${course.id}`);
+  assert.match(page.text, /name="channel" value="telegram"/);
+  const r = await b.req(`/courses/${course.id}/enroll`, { method: 'POST', form: { channel: 'telegram' } });
+  assert.equal(r.location, `/learn/course/${course.id}`);
+  await engine.idle();
+  const e = db.one('SELECT * FROM enrollments WHERE user_id=?', student.id);
+  assert.equal(e.channel, 'telegram');
+  assert.equal(e.wa_state, 'awaiting_watch', 'simulator connects instantly');
+  assert.equal((await b.req(`/learn/course/${course.id}`)).status, 200);
+});
+
 test('users can delete their account', async () => {
   const u = makeUser('student', { email: 'leaver@test.dev' });
   const b = browser();

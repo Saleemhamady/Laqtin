@@ -71,7 +71,7 @@
       <div class="section" id="questions">
         <div class="row between" style="margin-bottom:14px">
           <h2 style="margin:0"><span class="faint">3</span>&nbsp; Practice questions</h2>
-          <span class="small muted">Sent one by one as WhatsApp polls after the video</span>
+          <span class="small muted">Sent one by one as <%= tgProvider ? 'WhatsApp / Telegram' : 'WhatsApp' %> polls after the video</span>
         </div>
         <% questions.forEach(function (q, qi) { %>
           <details class="q-card" id="q-<%= q.id %>" <%= editId === q.id ? 'open' : '' %>>
@@ -125,7 +125,7 @@
         </ol>
       </div>
       <div class="card" style="margin-top:20px"><div class="card-body small">
-        <strong class="row" style="gap:8px; margin-bottom:8px"><%- icon('whatsapp', 'wa-ico') %>On WhatsApp, students get</strong>
+        <strong class="row" style="gap:8px; margin-bottom:8px"><%- icon('whatsapp', 'wa-ico') %>On <%= tgProvider ? 'WhatsApp &amp; Telegram' : 'WhatsApp' %>, students get</strong>
         <ol class="muted" style="margin:0; padding-left:18px">
           <li>The video with its description</li>
           <li>Your materials as links</li>

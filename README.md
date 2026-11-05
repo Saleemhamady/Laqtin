@@ -1,6 +1,6 @@
 # Laqtin
 
-An academy where courses are short videos plus practice, delivered through **WhatsApp**:
+An academy where courses are short videos plus practice, delivered through **WhatsApp** or **Telegram** (each student chooses when enrolling):
 
 1. A student enrolls on the web portal with their WhatsApp number.
 2. The academy number opens a **WhatsApp group** with the student and sends lesson 1.
@@ -58,6 +58,21 @@ Run **one instance**. A WhatsApp number can only have one live connection, and S
 
 **`cloud`** uses the official API. Configure `WA_CLOUD_*` and point the webhook to `{BASE_URL}/webhooks/whatsapp` (subscribe to `messages`). Businesses must open a conversation with an approved template, so set `WA_CLOUD_WELCOME_TEMPLATE` to a template with one body parameter (the student's first name). The journey starts when the student replies.
 
+### Telegram
+
+Telegram runs alongside WhatsApp. When it's enabled, students pick **WhatsApp** or **Telegram** when they enroll.
+
+1. In Telegram, message **@BotFather**, send `/newbot`, and copy the token.
+2. Set `TELEGRAM_BOT_TOKEN` and restart. **Admin** shows the bot as connected.
+
+How it works:
+- Bots can't message people first. After enrolling, the student taps **Connect Telegram**, which opens `t.me/<bot>?start=<one-time token>`, and presses **Start**. That links their Telegram to their Laqtin account; no phone number is needed. Later courses start right away.
+- Questions are native Telegram **quiz polls**. Telegram shows right or wrong and the first 200 characters of the explanation inside the poll. Longer explanations, links and files follow as a message, and explanation videos are sent directly (up to 50 MB).
+- "I watched it" is an inline button. `/stop` pauses and `/start` resumes.
+- Updates arrive by long polling, so no public webhook is needed. Run one instance per bot token.
+
+To try it without a bot, set `TELEGRAM_MODE=mock`. The portal then offers Telegram with a simulator.
+
 ### Social sign-in
 
 Create an OAuth app with each provider and register these redirect URIs:
@@ -79,9 +94,9 @@ src/
   db.js                  SQLite schema + migrations
   oauth.js               Google / Microsoft / Facebook sign-in
   whatsapp/engine.js     the learning journey state machine (provider-independent)
-  whatsapp/providers/    mock (simulator), baileys (groups + polls), cloud (official API)
+  whatsapp/providers/    mock (simulator), baileys (groups + polls), cloud (official API), telegram (bot + quiz polls)
   routes/                public, auth, student, teacher, admin
   views/                 EJS templates
 public/                  CSS, JS, favicon
-test/                    node:test suites (journey + HTTP)
+test/                    node:test suites (journey, HTTP, Telegram)
 ```

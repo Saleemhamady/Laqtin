@@ -21,7 +21,7 @@
     <div class="field" style="margin-bottom:0">
       <span class="label">Explanation <span class="hint" style="display:inline; margin-left:6px">Shown after the student answers</span></span>
       <div class="explain-box">
-        <label class="field"><span class="sr-only">Explanation text</span><textarea name="explanation" rows="3" maxlength="2000" placeholder="Why is this the right answer?"><%= q ? q.explanation : '' %></textarea></label>
+        <label class="field"><span class="sr-only">Explanation text</span><textarea name="explanation" rows="3" maxlength="2000" placeholder="Why is this the right answer?"><%= q ? q.explanation : '' %></textarea><% if (tgProvider) { %><span class="hint">Telegram shows up to 200 characters right inside the quiz; anything longer follows as a message.</span><% } %></label>
         <% if (q && q.explanation_file) { %>
           <div class="current-file">
             <span class="file-ico"><%- icon(q.explanation_kind === 'video' ? 'video' : q.explanation_kind === 'html' ? 'code' : q.explanation_kind === 'image' ? 'image' : 'file') %></span>
