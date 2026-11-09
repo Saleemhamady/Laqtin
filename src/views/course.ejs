@@ -56,7 +56,7 @@
               <% } else { %><input type="hidden" name="channel" value="whatsapp"><% } %>
               <div data-for-channel="whatsapp">
                 <% if (user && !user.phone) { %>
-                  <label class="field"><span>Your WhatsApp number</span><input type="tel" name="phone" placeholder="+971 50 123 4567" autocomplete="tel"><span class="hint">Include your country code.</span></label>
+                  <label class="field"><span>Your WhatsApp number</span><input type="tel" name="phone" placeholder="70 123 456" autocomplete="tel"><span class="hint">e.g. 70 123 456, or +country code for numbers outside Lebanon.</span></label>
                 <% } else if (user) { %>
                   <p class="hint" style="margin:-6px 0 14px">Lessons will go to <%= user.phone %> · <a href="/profile">change</a></p>
                 <% } %>

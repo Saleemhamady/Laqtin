@@ -7,7 +7,7 @@ import { createApp } from './app.js';
 openDb();
 await initWhatsApp();
 const server = createApp().listen(config.port, () => {
-  console.log(`Laqtin is running on ${config.baseUrl} (${config.env})`);
+  console.log(`Laqtine is running on ${config.baseUrl} (${config.env})`);
 });
 
 recoverInterrupted();

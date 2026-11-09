@@ -1,13 +1,13 @@
 services:
-  laqtin:
+  laqtine:
     build: .
     restart: unless-stopped
     env_file: .env
     ports:
       - "3000:3000"
     volumes:
-      - laqtin-data:/app/data       # database + WhatsApp session
-      - laqtin-uploads:/app/uploads # videos and materials
+      - laqtine-data:/app/data       # database + WhatsApp session
+      - laqtine-uploads:/app/uploads # videos and materials
 volumes:
-  laqtin-data:
-  laqtin-uploads:
+  laqtine-data:
+  laqtine-uploads:

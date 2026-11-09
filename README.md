@@ -1,4 +1,4 @@
-# Laqtin
+# Laqtine
 
 An academy where courses are short videos plus practice, delivered through **WhatsApp** or **Telegram** (each student chooses when enrolling):
 
@@ -27,7 +27,7 @@ npm run seed    # demo accounts + a sample course (password: password123)
 npm run dev     # http://localhost:3000
 ```
 
-Demo logins: `admin@laqtin.test`, `teacher@laqtin.test`, `student@laqtin.test`.
+Demo logins: `admin@laqtine.test`, `teacher@laqtine.test`, `student@laqtine.test`.
 
 By default `WHATSAPP_PROVIDER=mock`. Nothing is sent, and the portal shows a **WhatsApp simulator** where you can tap the polls yourself. Enroll as the student and try it.
 
@@ -41,7 +41,7 @@ Copy `.env.example` to `.env` and fill it in. `BASE_URL` and a 32+ character `SE
 docker compose up -d --build
 ```
 
-Put it behind HTTPS (Caddy, Nginx, a load balancer). Data lives in two volumes: `data/` (SQLite database and WhatsApp session) and `uploads/` (videos and files). Back both up. For the database, `sqlite3 data/laqtin.db ".backup backup.db"` is safe while the app is running.
+Put it behind HTTPS (Caddy, Nginx, a load balancer). Data lives in two volumes: `data/` (SQLite database and WhatsApp session) and `uploads/` (videos and files). Back both up. For the database, `sqlite3 data/laqtine.db ".backup backup.db"` is safe while the app is running.
 
 Run **one instance**. A WhatsApp number can only have one live connection, and SQLite is a single-node database.
 
@@ -58,6 +58,26 @@ Run **one instance**. A WhatsApp number can only have one live connection, and S
 
 **`cloud`** uses the official API. Configure `WA_CLOUD_*` and point the webhook to `{BASE_URL}/webhooks/whatsapp` (subscribe to `messages`). Businesses must open a conversation with an approved template, so set `WA_CLOUD_WELCOME_TEMPLATE` to a template with one body parameter (the student's first name). The journey starts when the student replies.
 
+### Video: Cloudflare Stream
+
+Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` (with **Account → Stream → Edit**), and subscribe to Stream in the Cloudflare dashboard. Then:
+
+- Teachers' uploads go **straight from the browser to Cloudflare** (up to 200 MB per video), never through this server or Cloudflare's 100 MB proxy limit. The lesson page shows the upload progress, then "preparing", and switches to the player once Stream has processed the video.
+- Students get **adaptive streaming** that starts at a low bitrate and is capped at `VIDEO_MAX_HEIGHT` (720p by default). A **Data saver** switch caps it at 360p.
+- The player has **speed control** (0.75×–2×, remembered) and **resumes** where the student stopped, saved on the server so it works across devices.
+- **Subtitles:** generate them automatically or upload a `.vtt` file (Arabic, English, French) from the lesson editor. They appear in the player's CC menu.
+- Deleting or replacing a lesson video also deletes it from Stream.
+
+Without Stream configured, videos are stored on the server as before, and YouTube, Vimeo or MP4 links still work.
+
+### Personal lesson links
+
+Every lesson and course link sent on WhatsApp or Telegram is personal: `/l/<enrollment>.<lesson>.<expiry>.<signature>`, signed with `SESSION_SECRET` and valid for 60 days. Tapping it opens the lesson **without signing in**. To stay safe if a link is forwarded:
+- only student accounts are signed in this way, and expired links fall back to the sign-in page;
+- a link session can't change the profile or password, delete the account, or attach a Google, Microsoft or Facebook login. Those need a normal sign-in.
+
+Changing `SESSION_SECRET` invalidates all links (and sessions).
+
 ### Telegram
 
 Telegram runs alongside WhatsApp. When it's enabled, students pick **WhatsApp** or **Telegram** when they enroll.
@@ -66,7 +86,7 @@ Telegram runs alongside WhatsApp. When it's enabled, students pick **WhatsApp** 
 2. Set `TELEGRAM_BOT_TOKEN` and restart. **Admin** shows the bot as connected.
 
 How it works:
-- Bots can't message people first. After enrolling, the student taps **Connect Telegram**, which opens `t.me/<bot>?start=<one-time token>`, and presses **Start**. That links their Telegram to their Laqtin account; no phone number is needed. Later courses start right away.
+- Bots can't message people first. After enrolling, the student taps **Connect Telegram**, which opens `t.me/<bot>?start=<one-time token>`, and presses **Start**. That links their Telegram to their Laqtine account; no phone number is needed. Later courses start right away.
 - Questions are native Telegram **quiz polls**. Telegram shows right or wrong and the first 200 characters of the explanation inside the poll. Longer explanations, links and files follow as a message, and explanation videos are sent directly (up to 50 MB).
 - "I watched it" is an inline button. `/stop` pauses and `/start` resumes.
 - Updates arrive by long polling, so no public webhook is needed. Run one instance per bot token.

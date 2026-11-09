@@ -5,7 +5,7 @@
   <% if (preview) { %><div class="alert info"><%- icon('eye') %><span>Preview — this is what students see. Answers aren’t saved.</span></div><% } %>
   <div class="split">
     <div>
-      <%- include('../partials/player', { video, track: !preview && !(row && row.progress.watched_at) }) %>
+      <%- include('../partials/player', { video, track: !preview && !(row && row.progress.watched_at), lessonId: preview ? null : lesson.id, resume: row && row.progress.position_seconds }) %>
       <div class="row between" style="margin:22px 0 8px; align-items:flex-start">
         <h1 style="margin:0; flex:1"><%= lesson.title %></h1>
         <% if (!preview) { %>

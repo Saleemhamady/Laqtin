@@ -1,4 +1,4 @@
-// Laqtin front-end: small, dependency-free progressive enhancement.
+// Laqtine front-end: small, dependency-free progressive enhancement.
 (() => {
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -155,6 +155,175 @@
     });
     reindex();
   });
+
+  // ---------- Cloudflare Stream: teacher uploads ----------
+  const store = {
+    get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  };
+
+  function watchStream(lessonId, onText) {
+    const tick = async () => {
+      try {
+        const s = await api(`/teach/lessons/${lessonId}/stream/refresh`, {});
+        if (s.state === 'ready') return location.reload();
+        if (s.state === 'error') return onText(`Cloudflare couldn’t process this video${s.error ? ` (${s.error})` : ''}. Please upload it again.`, true);
+        onText(s.state === 'uploading' ? 'Waiting for the upload to finish…' : `Preparing the video for streaming${s.pct ? ` — ${Math.round(s.pct)}%` : ''}…`);
+      } catch (err) {
+        onText(err.message, true);
+      }
+      setTimeout(tick, 5000);
+    };
+    tick();
+  }
+
+  $$('[data-stream-status]').forEach((box) => {
+    if (box.dataset.state === 'error') return;
+    watchStream(box.dataset.streamStatus, (t, bad) => {
+      $('[data-stream-text]', box).textContent = t;
+      box.classList.toggle('error', Boolean(bad));
+      box.classList.toggle('info', !bad);
+    });
+  });
+
+  $$('[data-stream-upload]').forEach((zone) => {
+    const input = $('input[type=file]', zone);
+    const wrap = $('[data-upload-progress]', zone);
+    const bar = $('.progress > span', wrap);
+    const text = $('[data-upload-text]', wrap);
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 200 * 1024 * 1024) return toast('Videos can be up to 200 MB. Try exporting at 720p.', 'error');
+      wrap.hidden = false;
+      input.disabled = true;
+      try {
+        const { uploadURL } = await api(`/teach/lessons/${zone.dataset.streamUpload}/stream/upload`, {});
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', uploadURL);
+          xhr.upload.onprogress = (e) => {
+            if (!e.lengthComputable) return;
+            const pct = Math.round((e.loaded / e.total) * 100);
+            bar.style.width = `${pct}%`;
+            text.textContent = `Uploading… ${pct}%`;
+          };
+          xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`)));
+          xhr.onerror = () => reject(new Error('Upload failed — check your connection and try again.'));
+          const fd = new FormData();
+          fd.append('file', file);
+          xhr.send(fd);
+        });
+        bar.style.width = '100%';
+        watchStream(zone.dataset.streamUpload, (t, bad) => {
+          text.textContent = t;
+          if (bad) toast(t, 'error');
+        });
+      } catch (err) {
+        wrap.hidden = true;
+        input.disabled = false;
+        toast(err.message, 'error');
+      }
+    });
+  });
+
+  // ---------- video player: adaptive streaming, speed, resume ----------
+  const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+  function setupPlayer(wrap) {
+    const video = $('video', wrap);
+    const note = $('[data-player-note]', wrap);
+    const saver = $('[data-datasaver]', wrap);
+    let hls = null;
+
+    // Adaptive streaming (HLS). Safari plays it natively; elsewhere hls.js does.
+    const src = video.dataset.hls;
+    if (src) {
+      const maxH = Number(video.dataset.maxHeight) || 720;
+      const capFor = () => (saver?.checked ? 360 : maxH);
+      const applyCap = () => {
+        if (!hls?.levels?.length) return;
+        let idx = 0;
+        hls.levels.forEach((l, i) => { if ((l.height || 0) <= capFor()) idx = i; });
+        hls.autoLevelCapping = idx;
+      };
+      if (saver) saver.checked = store.get('laqtine.datasaver') === '1';
+      if (window.Hls?.isSupported()) {
+        // Start conservatively (about 0.5 Mbps) so playback begins fast on mobile data.
+        hls = new window.Hls({ capLevelToPlayerSize: true, abrEwmaDefaultEstimate: 500000, maxBufferLength: 30 });
+        hls.on(window.Hls.Events.MANIFEST_PARSED, applyCap);
+        hls.on(window.Hls.Events.ERROR, (_, d) => {
+          if (!d.fatal) return;
+          if (d.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+            note.textContent = 'Connection lost — retrying…';
+            setTimeout(() => hls.startLoad(), 3000);
+          } else if (d.type === window.Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+        });
+        hls.loadSource(src);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+        if (saver) saver.closest('label').hidden = true; // Safari picks the quality itself
+      } else {
+        note.textContent = 'This browser can’t play the video.';
+      }
+      saver?.addEventListener('change', () => {
+        store.set('laqtine.datasaver', saver.checked ? '1' : '0');
+        applyCap();
+      });
+    }
+
+    // Playback speed, remembered across lessons.
+    const speeds = $$('[data-speed]', wrap);
+    const setSpeed = (v) => {
+      video.playbackRate = v;
+      speeds.forEach((b) => b.classList.toggle('on', Number(b.dataset.speed) === v));
+      store.set('laqtine.speed', String(v));
+    };
+    speeds.forEach((b) => b.addEventListener('click', () => setSpeed(Number(b.dataset.speed))));
+    const saved = Number(store.get('laqtine.speed'));
+    if (saved) {
+      setSpeed(saved);
+      video.addEventListener('loadedmetadata', () => (video.playbackRate = saved), { once: true });
+    }
+
+    // Resume where the student stopped, and keep saving their position.
+    const lesson = wrap.dataset.lesson;
+    if (!lesson) return;
+    const resume = Number(wrap.dataset.resume) || 0;
+    video.addEventListener(
+      'loadedmetadata',
+      () => {
+        if (resume > 5 && resume < video.duration - 15) {
+          video.currentTime = resume;
+          note.innerHTML = `Resumed at ${fmtTime(resume)} · <button type="button" class="link-btn" data-restart>Start over</button>`;
+          $('[data-restart]', note).addEventListener('click', () => {
+            video.currentTime = 0;
+            note.textContent = '';
+          });
+        }
+      },
+      { once: true }
+    );
+    let lastSent = -1;
+    const save = (force) => {
+      const t = Math.floor(video.currentTime || 0);
+      if (!force && Math.abs(t - lastSent) < 10) return;
+      lastSent = t;
+      fetch(`/api/lessons/${lesson}/position`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify({ seconds: t }),
+        keepalive: true,
+        credentials: 'same-origin',
+      }).catch(() => {});
+    };
+    video.addEventListener('timeupdate', () => !video.paused && save(false));
+    video.addEventListener('pause', () => save(true));
+    window.addEventListener('pagehide', () => save(true));
+  }
+  // hls.js loads with `defer` after this file, so wait until every script has run.
+  document.addEventListener('DOMContentLoaded', () => $$('[data-player]').forEach(setupPlayer));
 
   // ---------- lesson player ----------
   async function markWatched(lessonId) {

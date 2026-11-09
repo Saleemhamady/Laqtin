@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'laqtin-test-'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'laqtine-test-'));
 process.env.NODE_ENV = 'test';
 process.env.DATA_DIR = dir;
 process.env.UPLOAD_DIR = path.join(dir, 'uploads');

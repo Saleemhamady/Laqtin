@@ -9,6 +9,7 @@ import { one } from './db.js';
 import { getProvider, CHANNEL_LABEL } from './whatsapp/engine.js';
 import { initials, WA_STATE_LABEL, WA_STATE_TONE } from './lib.js';
 import { icon } from './icons.js';
+import { streamEnabled } from './stream.js';
 import authRoutes from './routes/auth.js';
 import publicRoutes from './routes/public.js';
 import studentRoutes from './routes/student.js';
@@ -31,9 +32,11 @@ export function createApp() {
           styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'data:', 'https:'],
-          mediaSrc: ["'self'", 'https:'],
+          mediaSrc: ["'self'", 'https:', 'blob:'],
+          workerSrc: ["'self'", 'blob:'],
           frameSrc: ["'self'", 'https://www.youtube-nocookie.com', 'https://www.youtube.com', 'https://player.vimeo.com'],
-          connectSrc: ["'self'"],
+          // Cloudflare Stream: HLS playback + direct uploads from the teacher's browser.
+          connectSrc: ["'self'", 'https://*.cloudflarestream.com', 'https://videodelivery.net', 'https://upload.videodelivery.net'],
           formAction: ["'self'"],
           upgradeInsecureRequests: config.baseUrl.startsWith('https://') ? [] : null,
         },
@@ -44,6 +47,7 @@ export function createApp() {
   );
 
   fs.mkdirSync(config.uploadDir, { recursive: true });
+  app.get('/static/vendor/hls.min.js', (req, res) => res.sendFile(path.join(config.root, 'node_modules/hls.js/dist/hls.min.js'), { maxAge: '7d' }));
   app.use('/static', express.static(path.join(config.root, 'public'), { maxAge: '1h' }));
   app.use(
     '/uploads',
@@ -67,7 +71,7 @@ export function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(
     cookieSession({
-      name: 'laqtin',
+      name: 'laqtine',
       keys: [config.sessionSecret],
       maxAge: 30 * 24 * 3600 * 1000,
       sameSite: 'lax',
@@ -95,6 +99,8 @@ export function createApp() {
     res.locals.CHANNEL_LABEL = CHANNEL_LABEL;
     res.locals.viaLabel = (v) => (v === 'web' ? 'on the portal' : `on ${CHANNEL_LABEL[v] || v}`);
     res.locals.baseUrl = config.baseUrl;
+    res.locals.streamEnabled = streamEnabled();
+    res.locals.videoMaxHeight = config.cloudflare.maxHeight;
     req.flash = (type, text) => (req.session.flash = { type, text });
     next();
   });

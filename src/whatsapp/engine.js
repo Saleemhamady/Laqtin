@@ -10,6 +10,7 @@
 // the same state, so the portal and WhatsApp always agree.
 import { one, all, run, parseQuestion } from '../db.js';
 import { config } from '../config.js';
+import { makeLink } from '../links.js';
 
 const LETTERS = 'ABCDEFGHIJKL';
 const queues = new Map();
@@ -93,7 +94,9 @@ async function poll(e, name, options, ref, quiz = null) {
   log(e.id, 'out', 'poll', { name, options }, { ref, externalId: r.id });
 }
 
-const lessonLink = (lesson) => `${config.baseUrl}/learn/lesson/${lesson.id}`;
+// Personal links: the student lands on the lesson without signing in.
+const lessonLink = (e, lesson) => makeLink(e.id, lesson.id);
+const courseLink = (e) => makeLink(e.id, 0);
 
 // ---------- recording (synchronous, shared by web + WhatsApp) ----------
 
@@ -138,7 +141,7 @@ async function deliverLesson(e, lesson) {
   const caption =
     `📺 *Lesson ${idx + 1}/${lessons.length}: ${lesson.title}*` +
     (lesson.description ? `\n\n${lesson.description}` : '') +
-    `\n\n▶️ Watch it here: ${lessonLink(lesson)}`;
+    `\n\n▶️ Watch it here: ${lessonLink(e, lesson)}`;
 
   const smallFile = lesson.video_file && lesson.video_size && lesson.video_size <= maxVideoBytes(prov(e));
   if (smallFile && prov(e).sendVideo) {
@@ -208,7 +211,7 @@ async function complete(e) {
     enrollment(e.id),
     `🎓 *Congratulations!* You finished *${course.title}*.` +
       (s.total ? `\nOverall score: *${s.correct}/${s.total}* (${s.pct}%).` : '') +
-      `\nYour full progress is on the portal: ${config.baseUrl}/learn/course/${course.id}`
+      `\nYour full progress is on the portal: ${courseLink(e)}`
   );
 }
 
@@ -220,7 +223,7 @@ async function welcomeAndStart(e) {
     e,
     `👋 Hi ${user.name.split(' ')[0]}! Welcome to *${course.title}* with ${course.teacher_name}.\n\n` +
       `Here's how it works:\n1️⃣ I send you a lesson video\n2️⃣ Tap "I watched it" when you're done\n3️⃣ Answer a few quick polls and get instant feedback\n\n` +
-      `${n} lesson${n === 1 ? '' : 's'} ahead. Everything stays in sync with your portal: ${config.baseUrl}/learn/course/${course.id}`
+      `${n} lesson${n === 1 ? '' : 's'} ahead. Everything stays in sync with your portal: ${courseLink(e)}`
   );
   // Resume where they were (e.g. after reconnecting Telegram), else lesson 1.
   const current = e.current_lesson_id && one('SELECT * FROM lessons WHERE id=?', e.current_lesson_id);
@@ -404,7 +407,7 @@ export async function handleInbound(evt) {
 
 /**
  * Telegram deep link: t.me/<bot>?start=<token>. Links the Telegram chat to the
- * Laqtin user that owns the token, then starts any journeys waiting for it.
+ * Laqtine user that owns the token, then starts any journeys waiting for it.
  */
 async function linkTelegram(evt) {
   const p = providers.telegram;
@@ -413,7 +416,7 @@ async function linkTelegram(evt) {
   let user = token ? one('SELECT * FROM users WHERE telegram_link_token=?', token) : null;
   if (!user) user = one('SELECT * FROM users WHERE telegram_chat_id=?', String(evt.chatId));
   if (!user) {
-    await p.sendText(evt.chatId, `👋 This is the Laqtin academy bot.\nTo get your lessons here, open your course on ${config.baseUrl} and tap *Connect Telegram*.`);
+    await p.sendText(evt.chatId, `👋 This is the Laqtine academy bot.\nTo get your lessons here, open your course on ${config.baseUrl} and tap *Connect Telegram*.`);
     return;
   }
   const other = one('SELECT id FROM users WHERE telegram_chat_id=? AND id<>?', String(evt.chatId), user.id);
@@ -447,7 +450,7 @@ export function stop(enrollmentId, via = 'web') {
     () =>
       say(
         enrollment(e.id),
-        `⏸️ Paused *${one('SELECT title FROM courses WHERE id=?', e.course_id).title}* — I won't send more messages${via === 'web' ? '' : ' here'}. Reply *START* or use the portal whenever you want to continue: ${config.baseUrl}/learn/course/${e.course_id}`
+        `⏸️ Paused *${one('SELECT title FROM courses WHERE id=?', e.course_id).title}* — I won't send more messages${via === 'web' ? '' : ' here'}. Reply *START* or use the portal whenever you want to continue: ${courseLink(e)}`
       ),
     { evenIfStopped: true }
   );
@@ -495,7 +498,7 @@ export async function sendReminders() {
       const cur = enrollment(e.id);
       const lesson = one('SELECT * FROM lessons WHERE id=?', cur.current_lesson_id);
       if (cur.wa_state === 'awaiting_watch') {
-        await say(cur, `⏰ Your lesson *${lesson.title}* is waiting for you — a few minutes is all it takes.\n▶️ ${lessonLink(lesson)}\n\n(Reply STOP to pause these messages.)`);
+        await say(cur, `⏰ Your lesson *${lesson.title}* is waiting for you — a few minutes is all it takes.\n▶️ ${lessonLink(cur, lesson)}\n\n(Reply STOP to pause these messages.)`);
       } else if (cur.wa_state === 'quizzing') {
         await say(cur, `⏰ You have a practice question waiting above 👆 Tap an answer to keep going.\n\n(Reply STOP to pause these messages.)`);
       }

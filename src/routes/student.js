@@ -5,6 +5,7 @@ import { config } from '../config.js';
 import { courseProgress, courseWithTeacher, videoEmbed } from '../lib.js';
 import { requireUser, HttpError, fileKind } from '../middleware.js';
 import * as engine from '../whatsapp/engine.js';
+import { readLink } from '../links.js';
 
 const r = Router();
 
@@ -20,6 +21,29 @@ function visibleEnrollment(user, id) {
   if (!e || (e.user_id !== user.id && e.teacher_id !== user.id && user.role !== 'admin')) throw new HttpError(404, 'Not found');
   return e;
 }
+
+// Personal links from WhatsApp/Telegram messages (see src/links.js).
+r.get('/l/:token', (req, res) => {
+  const link = readLink(req.params.token);
+  if (!link) return res.status(400).render('error', { title: 'Link not valid', message: 'This link isn’t valid. Open the latest message from Laqtine, or sign in.' });
+  const e = one('SELECT * FROM enrollments WHERE id=?', link.enrollmentId);
+  if (!e) return res.status(404).render('error', { title: 'Not found', message: 'This course enrollment no longer exists.' });
+  const lesson = link.lessonId ? one('SELECT * FROM lessons WHERE id=? AND course_id=?', link.lessonId, e.course_id) : null;
+  const target = lesson ? `/learn/lesson/${lesson.id}` : `/learn/course/${e.course_id}`;
+  if (req.user?.id === e.user_id) return res.redirect(target);
+
+  const user = one('SELECT * FROM users WHERE id=?', e.user_id);
+  if (link.expired || user.role !== 'student') {
+    // Expired links, and teacher/admin accounts, always need a real sign-in.
+    req.session.returnTo = target;
+    if (link.expired) req.flash('error', 'That link has expired — please sign in to continue.');
+    return res.redirect('/login');
+  }
+  req.session.uid = user.id;
+  req.session.viaLink = true;
+  req.session.csrf = null;
+  res.redirect(target);
+});
 
 r.get('/learn', requireUser, (req, res) => {
   const enrollments = all(
@@ -120,6 +144,16 @@ r.post('/api/lessons/:id/watched', requireUser, (req, res) => {
   if (!lesson) throw new HttpError(404, 'Lesson not found');
   const e = myEnrollment(req.user.id, lesson.course_id);
   engine.watched(e.id, lesson.id, 'web');
+  res.json({ ok: true });
+});
+
+r.post('/api/lessons/:id/position', requireUser, (req, res) => {
+  const lesson = one('SELECT * FROM lessons WHERE id=?', Number(req.params.id));
+  if (!lesson) throw new HttpError(404, 'Lesson not found');
+  const e = myEnrollment(req.user.id, lesson.course_id);
+  const seconds = Math.max(0, Math.min(Number(req.body.seconds) || 0, 24 * 3600));
+  run('INSERT OR IGNORE INTO lesson_progress (enrollment_id, lesson_id) VALUES (?,?)', e.id, lesson.id);
+  run('UPDATE lesson_progress SET position_seconds=? WHERE enrollment_id=? AND lesson_id=?', seconds, e.id, lesson.id);
   res.json({ ok: true });
 });
 

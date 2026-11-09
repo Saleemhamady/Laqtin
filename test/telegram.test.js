@@ -14,7 +14,7 @@ function fakeTelegram() {
     const body = init.body instanceof FormData ? Object.fromEntries(init.body) : JSON.parse(init.body || '{}');
     calls.push({ method, body });
     const result = {
-      getMe: { id: 1, username: 'LaqtinBot' },
+      getMe: { id: 1, username: 'LaqtineBot' },
       sendPoll: { message_id: ++msgId, poll: { id: String(++pollId) } },
       getUpdates: [],
     }[method] ?? { message_id: ++msgId };
@@ -52,7 +52,7 @@ test('Telegram journey: connect link → lesson → button → quiz polls → do
   await engine.startJourney(eid);
   await engine.idle();
   assert.equal(enrollmentRow(eid).wa_state, 'awaiting_join');
-  assert.equal(tg.linkUrl('tok123'), 'https://t.me/LaqtinBot?start=tok123');
+  assert.equal(tg.linkUrl('tok123'), 'https://t.me/LaqtineBot?start=tok123');
 
   // Student presses Start in Telegram via the deep link.
   await tgUpdate(tg, { message: { chat: { id: 777, type: 'private' }, from: { username: 'omar' }, text: '/start tok123' } });

@@ -1,4 +1,4 @@
-// WhatsApp Web provider (Baileys). This is the one that matches the Laqtin concept
+// WhatsApp Web provider (Baileys). This is the one that matches the Laqtine concept
 // exactly: a dedicated number opens a *group* per student+course and sends native
 // WhatsApp *polls*. It links to the number like WhatsApp Web does (scan a QR code
 // from the admin page).
@@ -47,7 +47,7 @@ export async function createBaileysProvider() {
     } catch {
       /* use bundled version */
     }
-    sock = makeWASocket({ auth, version, logger: quietLogger, browser: ['Laqtin', 'Chrome', '1.0'], markOnlineOnConnect: false });
+    sock = makeWASocket({ auth, version, logger: quietLogger, browser: ['Laqtine', 'Chrome', '1.0'], markOnlineOnConnect: false });
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', ({ connection, qr, lastDisconnect }) => {
@@ -135,7 +135,7 @@ export async function createBaileysProvider() {
       // wait for them to join before starting (new members can't see older messages).
       const code = await s.groupInviteCode(group.id);
       const inviteLink = `https://chat.whatsapp.com/${code}`;
-      await s.sendMessage(exists.jid || jid, { text: `👋 You're enrolled in *${title}* on Laqtin! Join your learning group to get your first lesson: ${inviteLink}` });
+      await s.sendMessage(exists.jid || jid, { text: `👋 You're enrolled in *${title}* on Laqtine! Join your learning group to get your first lesson: ${inviteLink}` });
       return { chatId: group.id, inviteLink, pendingJoin: true };
     },
 

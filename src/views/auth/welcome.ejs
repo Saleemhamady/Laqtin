@@ -2,7 +2,7 @@
 <div class="container">
   <div class="auth card"><div class="card-body">
     <h1>One last step</h1>
-    <p class="sub">Tell us a bit about how you’ll use Laqtin.</p>
+    <p class="sub">Tell us a bit about how you’ll use Laqtine.</p>
     <% if (typeof error !== 'undefined') { %><div class="alert error"><%- icon('alert') %><span><%= error %></span></div><% } %>
     <form method="post" action="/welcome" novalidate data-role-form>
       <input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -18,7 +18,7 @@
         </div>
       <% } %>
       <label class="field"><span>Full name</span><input type="text" name="name" value="<%= values.name %>" required autocomplete="name"></label>
-      <label class="field"><span>WhatsApp number <em class="faint" data-optional style="font-style:normal; font-weight:400">(optional)</em></span><input type="tel" name="phone" value="<%= values.phone %>" placeholder="+971 50 123 4567" autocomplete="tel"><span class="hint">Your lessons and practice arrive here. Include the country code.</span></label>
+      <label class="field"><span>WhatsApp number <em class="faint" data-optional style="font-style:normal; font-weight:400">(optional)</em></span><input type="tel" name="phone" value="<%= values.phone %>" placeholder="70 123 456" autocomplete="tel"><span class="hint">Your lessons and practice arrive here. Lebanese numbers can be typed as 70 123 456; add + and the country code for other countries.</span></label>
       <button class="btn primary block lg" type="submit">Continue</button>
     </form>
     <p class="legal">By continuing you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>

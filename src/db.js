@@ -49,6 +49,11 @@ CREATE TABLE IF NOT EXISTS lessons (
   video_url TEXT,
   video_file TEXT,
   video_size INTEGER,
+  stream_uid TEXT,                -- Cloudflare Stream video
+  stream_state TEXT,              -- uploading | processing | ready | error
+  stream_hls TEXT,
+  stream_thumbnail TEXT,
+  stream_duration REAL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -100,6 +105,7 @@ CREATE TABLE IF NOT EXISTS lesson_progress (
   watched_at TEXT,
   watched_via TEXT,
   quiz_completed_at TEXT,
+  position_seconds REAL,          -- where the student stopped the video
   PRIMARY KEY (enrollment_id, lesson_id)
 );
 
@@ -143,7 +149,7 @@ CREATE TABLE IF NOT EXISTS kv (
 
 let db;
 
-export function openDb(file = path.join(config.dataDir, 'laqtin.db')) {
+export function openDb(file = path.join(config.dataDir, 'laqtine.db')) {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
   db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
@@ -170,6 +176,11 @@ function migrate(d) {
   add('users', 'telegram_username', 'TEXT');
   add('users', 'telegram_link_token', 'TEXT');
   add('enrollments', 'channel', "TEXT NOT NULL DEFAULT 'whatsapp'");
+  for (const c of ['stream_uid TEXT', 'stream_state TEXT', 'stream_hls TEXT', 'stream_thumbnail TEXT', 'stream_duration REAL']) {
+    const [name, type] = c.split(' ');
+    add('lessons', name, type);
+  }
+  add('lesson_progress', 'position_seconds', 'REAL');
   d.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_tg_token ON users(telegram_link_token)');
 }
 

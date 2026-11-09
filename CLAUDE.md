@@ -8,7 +8,9 @@ Read this before working on the project. It records decisions already made with 
 
 - Account: `f8de1c0fc217389c302f9304f8f6b598` (Keef.education@gmail.com's Account)
 - Zone laqtine.com: `5d705b3f030d496324f5efb7db779c2b` (active, Free plan, SSL mode Full)
-- Token can: DNS edit, zone read, email routing. **Stream: not yet** (user must subscribe to Stream and add Account → Stream → Edit to the token).
+- Token can: DNS edit, zone read, read Stream and email-routing settings. It **can't create email routing** (missing Email Routing Addresses Edit / Email Routing Rules Edit / Zone Settings Edit) — the user said they'll set up `hello@laqtine.com` → keef.education@gmail.com in the dashboard themselves.
+- **Stream is not subscribed yet:** uploads fail with "Storage capacity exceeded" until the user subscribes (Dashboard → Stream). The app code is ready for it.
+- To run the app against the real account from a cloud session: `CLOUDFLARE_ACCOUNT_ID=f8de1c0fc217389c302f9304f8f6b598 CLOUDFLARE_API_TOKEN=proxy-injected` (the proxy replaces the placeholder).
 - The plugin's MCP server (mcp.cloudflare.com) can't complete its OAuth sign-in from a cloud session — use the API token instead.
 
 If starting from scratch in another environment, do this (from Cloudflare's official agent setup, https://developers.cloudflare.com/agent-setup/prompt.md):
@@ -25,21 +27,24 @@ If starting from scratch in another environment, do this (from Cloudflare's offi
 
 ## Decisions so far
 
-- **Name / domain:** Laqtine, **laqtine.com**, registered at **Cloudflare Registrar** (the code and README still say "Laqtin" — renaming the branding to "Laqtine" is planned).
+- **Name / domain:** Laqtine, **laqtine.com**, bought at **Cloudflare Registrar**. The app is branded Laqtine (the GitHub repo and checkout folder are still named laqtin).
 - **Social handles:** @laqtine looked free on Telegram, YouTube and X; Telegram bot name **@LaqtineBot**. ("laqtin" is taken on Telegram and YouTube.)
 - **Students:** initially in **Lebanon**. Implications: WhatsApp is the main channel (Telegram optional); default phone country code **+961**; mobile data is expensive and power/internet cuts are common, so keep video bitrate modest (480–720p) and lessons short; Arabic (RTL) / English / French UI is being considered; Stripe isn't available to Lebanese businesses.
 - **Video:** **Cloudflare Stream** (it has a Beirut data center). Expected load ~1,000 students × 7 h/month ≈ 420,000 delivered minutes ≈ $420/month delivery + storage ($1 per 1,000 min delivered, $5 per 1,000 min stored).
 - **Hosting:** not Bluehost shared hosting (no long-running Node.js). Use a host with a persistent disk and an always-on process (e.g. Render paid plan, Frankfurt region, or a VPS with Docker).
 - **Uploads via Cloudflare proxy** are capped at 100 MB on the free plan — videos should upload directly to Stream, not through the app.
 
-## Planned next build
+## Built so far (latest)
 
-1. Rename branding to Laqtine.
-2. Cloudflare Stream integration: direct uploads from the teacher UI, adaptive playback tuned for mobile data, resume position, playback speed, subtitles, watch tracking.
-3. Personal sign-in-free lesson links in WhatsApp/Telegram messages.
-4. +961 as the default phone country.
+- Rename to Laqtine; +961 default country (`DEFAULT_COUNTRY_CODE`, `normalizePhone` in `src/lib.js`).
+- Personal sign-in-free links in chat messages (`src/links.js`, route `/l/:token`; link sessions can't change account settings).
+- Cloudflare Stream (`src/stream.js`): direct browser uploads, processing status, hls.js player with 720p cap + Data saver, speed, resume position (`lesson_progress.position_seconds`), subtitles (generate or upload .vtt).
+
+## Ideas not built yet
+
+Arabic/French UI (RTL), sending Stream videos as files inside WhatsApp for offline viewing, signed Stream URLs, payments for Lebanon, deployment (Render Frankfurt or VPS) + DNS for laqtine.com.
 
 ## Project basics
 
-- Node 22.13+, Express, EJS, SQLite (`node:sqlite`). `npm run dev`, `npm test`, `npm run seed` (demo accounts, password `password123`: admin@laqtin.test, teacher@laqtin.test, student@laqtin.test).
+- Node 22.13+, Express, EJS, SQLite (`node:sqlite`). `npm run dev`, `npm test`, `npm run seed` (demo accounts, password `password123`: admin@laqtine.test, teacher@laqtine.test, student@laqtine.test).
 - Messaging providers live in `src/whatsapp/providers/` (mock, baileys, cloud, telegram); the journey logic is `src/whatsapp/engine.js`.

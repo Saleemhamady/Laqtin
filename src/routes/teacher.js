@@ -5,7 +5,9 @@ import { config } from '../config.js';
 import { one, all, run, tx, parseQuestion } from '../db.js';
 import { courseProgress, courseWithTeacher, videoEmbed } from '../lib.js';
 import { requireRole, HttpError, videoUpload, materialUpload, explanationUpload, fileKind } from '../middleware.js';
+import multer from 'multer';
 import * as engine from '../whatsapp/engine.js';
+import * as stream from '../stream.js';
 
 const r = Router();
 r.use(requireRole('teacher', 'admin'));
@@ -169,7 +171,7 @@ r.post('/courses/:id/lessons', (req, res) => {
   res.redirect(`/teach/lessons/${lastInsertRowid}`);
 });
 
-r.get('/lessons/:id', (req, res) => {
+r.get('/lessons/:id', async (req, res) => {
   const lesson = ownLesson(req, req.params.id);
   const course = ownCourse(req, lesson.course_id);
   const lessons = all('SELECT id, title, position FROM lessons WHERE course_id=? ORDER BY position, id', course.id);
@@ -188,7 +190,79 @@ r.get('/lessons/:id', (req, res) => {
     video: videoEmbed(lesson),
     editId: Number(req.query.edit) || null,
     maxUploadMb: config.maxUploadMb,
+    captions: lesson.stream_uid && lesson.stream_state === 'ready' ? await stream.listCaptions(lesson.stream_uid).catch(() => null) : null,
+    CAPTION_LANGS,
   });
+});
+
+// ---------- Cloudflare Stream ----------
+
+const CAPTION_LANGS = { ar: 'Arabic', en: 'English', fr: 'French' };
+const NO_STREAM = { stream_uid: null, stream_state: null, stream_hls: null, stream_thumbnail: null, stream_duration: null };
+const setLesson = (id, fields) => {
+  const keys = Object.keys(fields);
+  run(`UPDATE lessons SET ${keys.map((k) => `${k}=?`).join(', ')} WHERE id=?`, ...keys.map((k) => fields[k]), id);
+};
+
+/** Step 1: the browser asks for a one-time upload URL, then uploads the file straight to Cloudflare. */
+r.post('/lessons/:id/stream/upload', async (req, res) => {
+  const lesson = ownLesson(req, req.params.id);
+  if (!stream.streamEnabled()) throw new HttpError(400, 'Cloudflare Stream is not configured.');
+  const course = one('SELECT title FROM courses WHERE id=?', lesson.course_id);
+  const { uid, uploadURL } = await stream.createDirectUpload({ name: `${course.title} – ${lesson.title}` });
+  if (lesson.stream_uid) stream.deleteVideo(lesson.stream_uid);
+  removeUpload(lesson.video_file);
+  setLesson(lesson.id, { ...NO_STREAM, stream_uid: uid, stream_state: 'uploading', video_file: null, video_size: null, video_url: null });
+  res.json({ uploadURL, uid });
+});
+
+/** Step 2: check processing progress (the page polls this until the video is ready). */
+r.post('/lessons/:id/stream/refresh', async (req, res) => {
+  const lesson = ownLesson(req, req.params.id);
+  if (!lesson.stream_uid) return res.json({ state: null });
+  const v = await stream.getVideo(lesson.stream_uid);
+  setLesson(lesson.id, { stream_state: v.state, stream_hls: v.hls, stream_thumbnail: v.thumbnail, stream_duration: v.duration });
+  res.json({ state: v.state, pct: v.pct, error: v.error });
+});
+
+r.post('/lessons/:id/captions/generate', async (req, res) => {
+  const lesson = ownLesson(req, req.params.id);
+  const lang = CAPTION_LANGS[req.body.lang] ? req.body.lang : 'en';
+  try {
+    await stream.generateCaptions(lesson.stream_uid, lang);
+    req.flash('success', `Generating ${CAPTION_LANGS[lang]} subtitles — they appear in a few minutes.`);
+  } catch (err) {
+    req.flash('error', `${err.message}. You can upload a subtitle file (.vtt) instead.`);
+  }
+  res.redirect(`/teach/lessons/${lesson.id}#video`);
+});
+
+const vttUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => (/\.vtt$/i.test(file.originalname) ? cb(null, true) : cb(new HttpError(400, 'Subtitles must be a .vtt file.'))),
+});
+
+r.post('/lessons/:id/captions', vttUpload.single('vtt'), async (req, res) => {
+  const lesson = ownLesson(req, req.params.id);
+  const lang = CAPTION_LANGS[req.body.lang] ? req.body.lang : 'en';
+  if (!req.file) {
+    req.flash('error', 'Choose a .vtt subtitle file.');
+  } else {
+    try {
+      await stream.uploadCaptions(lesson.stream_uid, lang, req.file.buffer);
+      req.flash('success', `${CAPTION_LANGS[lang]} subtitles added.`);
+    } catch (err) {
+      req.flash('error', err.message);
+    }
+  }
+  res.redirect(`/teach/lessons/${lesson.id}#video`);
+});
+
+r.post('/lessons/:id/captions/:lang/delete', async (req, res) => {
+  const lesson = ownLesson(req, req.params.id);
+  await stream.deleteCaptions(lesson.stream_uid, req.params.lang).catch((err) => req.flash('error', err.message));
+  res.redirect(`/teach/lessons/${lesson.id}#video`);
 });
 
 r.post('/lessons/:id', videoUpload.single('video'), (req, res) => {
@@ -196,12 +270,15 @@ r.post('/lessons/:id', videoUpload.single('video'), (req, res) => {
   const title = str(req.body.title, 160) || lesson.title;
   const description = str(req.body.description);
   let { video_file, video_url, video_size } = lesson;
+  let dropStream = false;
   if (req.file) {
+    dropStream = true;
     removeUpload(video_file);
     video_file = req.file.filename;
     video_size = req.file.size;
     video_url = null;
   } else if (req.body.remove_video === '1') {
+    dropStream = true;
     removeUpload(video_file);
     video_file = null;
     video_size = null;
@@ -209,6 +286,7 @@ r.post('/lessons/:id', videoUpload.single('video'), (req, res) => {
   } else if (req.body.video_url !== undefined) {
     const url = cleanUrl(req.body.video_url);
     if (url && url !== video_url) {
+      dropStream = true;
       removeUpload(video_file);
       video_file = null;
       video_size = null;
@@ -216,6 +294,10 @@ r.post('/lessons/:id', videoUpload.single('video'), (req, res) => {
     if (url || !video_file) video_url = url;
   }
   run('UPDATE lessons SET title=?, description=?, video_file=?, video_url=?, video_size=? WHERE id=?', title, description, video_file, video_url, video_size, lesson.id);
+  if (dropStream && lesson.stream_uid) {
+    stream.deleteVideo(lesson.stream_uid);
+    setLesson(lesson.id, NO_STREAM);
+  }
   req.flash('success', 'Lesson saved.');
   res.redirect(`/teach/lessons/${lesson.id}`);
 });
@@ -234,6 +316,7 @@ r.post('/lessons/:id/move', (req, res) => {
 
 function deleteLessonFiles(lesson) {
   removeUpload(lesson.video_file);
+  if (lesson.stream_uid) stream.deleteVideo(lesson.stream_uid);
   for (const m of all('SELECT file FROM materials WHERE lesson_id=?', lesson.id)) removeUpload(m.file);
   for (const q of all('SELECT explanation_file FROM questions WHERE lesson_id=?', lesson.id)) removeUpload(q.explanation_file);
 }

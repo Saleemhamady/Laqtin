@@ -58,7 +58,7 @@ r.post('/courses/:id/enroll', requireUser, (req, res) => {
   if (req.body.phone) {
     phone = normalizePhone(req.body.phone);
     if (!phone) {
-      req.flash('error', 'Enter your WhatsApp number with the country code, e.g. +971 50 123 4567.');
+      req.flash('error', 'That doesn’t look like a valid WhatsApp number. Try e.g. 70 123 456 or +961 70 123 456.');
       return res.redirect(`/courses/${course.id}`);
     }
     run('UPDATE users SET phone=? WHERE id=?', phone, req.user.id);

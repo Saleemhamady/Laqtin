@@ -1,7 +1,30 @@
+<%# Video player. Params: video, track (report "watched"), lessonId + resume (save/restore position for students). %>
+<% const tracked = typeof track !== 'undefined' && track;
+   const pos = typeof lessonId !== 'undefined' && lessonId ? lessonId : null;
+   const resumeAt = typeof resume !== 'undefined' && resume ? Math.floor(resume) : 0; %>
 <% if (!video) { %>
   <div class="player empty-player">No video for this lesson yet</div>
-<% } else if (video.type === 'file') { %>
-  <div class="player"><video src="<%= video.src %>" controls playsinline preload="metadata" <%- typeof track !== 'undefined' && track ? 'data-track-watch' : '' %>></video></div>
+<% } else if (video.type === 'processing') { %>
+  <div class="player empty-player"><span class="row" style="gap:8px"><%- icon('clock') %><%= video.state === 'error' ? 'This video couldn’t be processed. Please upload it again.' : 'The video is being prepared — check back in a few minutes.' %></span></div>
+<% } else if (video.type === 'file' || video.type === 'stream') { %>
+  <div class="player-wrap" data-player <%- pos ? `data-lesson="${pos}" data-resume="${resumeAt}"` : '' %>>
+    <div class="player">
+      <video controls playsinline preload="metadata" crossorigin="anonymous"
+        <%- video.type === 'stream' ? `data-hls="${video.src}" data-max-height="${videoMaxHeight}"` : `src="${video.src}"` %>
+        <%- video.poster ? `poster="${video.poster}"` : '' %>
+        <%- tracked ? 'data-track-watch' : '' %>></video>
+    </div>
+    <div class="player-bar">
+      <div class="speeds" role="group" aria-label="Playback speed">
+        <% [0.75, 1, 1.25, 1.5, 2].forEach(function (s) { %><button type="button" data-speed="<%= s %>" class="<%= s === 1 ? 'on' : '' %>"><%= s %>×</button><% }) %>
+      </div>
+      <span class="player-note" data-player-note></span>
+      <% if (video.type === 'stream') { %>
+        <label class="datasaver" title="Stream at low quality to save mobile data"><input type="checkbox" data-datasaver> Data saver</label>
+      <% } %>
+    </div>
+  </div>
+  <% if (video.type === 'stream') { %><script src="/static/vendor/hls.min.js" defer></script><% } %>
 <% } else if (video.type === 'youtube' || video.type === 'vimeo') { %>
   <div class="player"><iframe src="<%= video.src %>" title="Video" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>
 <% } else { %>

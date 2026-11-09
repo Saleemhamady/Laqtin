@@ -1,7 +1,7 @@
 {
-  "name": "laqtin",
+  "name": "laqtine",
   "version": "0.1.0",
-  "description": "Laqtin academy: video courses with practice delivered through WhatsApp groups and polls, synced with a web portal.",
+  "description": "Laqtine academy: video courses with practice delivered through WhatsApp groups and polls, synced with a web portal.",
   "type": "module",
   "private": true,
   "engines": {
@@ -19,6 +19,7 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.7.3",
     "helmet": "^8.3.0",
+    "hls.js": "^1.7.4",
     "multer": "^2.0.2",
     "nodemailer": "^10.3.1",
     "qrcode": "^1.5.4"

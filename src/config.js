@@ -9,9 +9,18 @@ export const config = {
   // Public URL of the portal, used in links sent over WhatsApp.
   baseUrl: (process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, ''),
   env: process.env.NODE_ENV || 'development',
+  // Phone numbers typed without a country code belong to this country (Lebanon).
+  defaultCountryCode: String(process.env.DEFAULT_COUNTRY_CODE || '961').replace(/\D/g, ''),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-change-me',
   // When false, new accounts are always students; admins promote teachers.
   allowTeacherSignup: (process.env.ALLOW_TEACHER_SIGNUP ?? 'true') === 'true',
+  cloudflare: {
+    // Cloudflare Stream video hosting. Without these, videos are stored on this server.
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    apiToken: process.env.CLOUDFLARE_API_TOKEN || '',
+    // Highest quality students stream by default (saves mobile data); "Data saver" caps at 360p.
+    maxHeight: Number(process.env.VIDEO_MAX_HEIGHT || 720),
+  },
   telegram: {
     // From @BotFather. Leave empty to hide the Telegram option.
     token: process.env.TELEGRAM_BOT_TOKEN || '',
@@ -22,7 +31,7 @@ export const config = {
   },
   smtp: {
     url: process.env.SMTP_URL || '', // e.g. smtps://user:pass@smtp.example.com:465
-    from: process.env.MAIL_FROM || 'Laqtin <no-reply@example.com>',
+    from: process.env.MAIL_FROM || 'Laqtine <no-reply@example.com>',
   },
   oauth: {
     google: { clientId: process.env.GOOGLE_CLIENT_ID || '', clientSecret: process.env.GOOGLE_CLIENT_SECRET || '' },

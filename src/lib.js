@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { one, all, parseQuestion } from './db.js';
+import { config } from './config.js';
 
 export function hashPassword(pw) {
   const salt = crypto.randomBytes(16);
@@ -14,16 +15,31 @@ export function verifyPassword(pw, stored) {
   return crypto.timingSafeEqual(test, Buffer.from(hash, 'hex'));
 }
 
-/** International format, digits only with a leading +, or null if invalid. */
-export function normalizePhone(input) {
+/**
+ * International format (+ and digits), or null if invalid. Numbers typed without a
+ * country code are treated as local to DEFAULT_COUNTRY_CODE (Lebanon, +961):
+ * "03 123 456" → +9613123456, "70 123 456" → +96170123456.
+ */
+export function normalizePhone(input, cc = config.defaultCountryCode) {
   if (!input) return null;
-  let s = String(input).trim().replace(/[\s\-().]/g, '');
+  let s = String(input).trim().replace(/[\s\-().\/]/g, '');
   if (s.startsWith('00')) s = '+' + s.slice(2);
-  if (!s.startsWith('+')) s = '+' + s;
+  if (!s.startsWith('+')) {
+    if (!/^\d+$/.test(s)) return null;
+    if (s.startsWith('0')) s = cc + s.slice(1); // local trunk prefix
+    else if (!(s.startsWith(cc) && s.length > cc.length + 6)) s = cc + s; // local number without 0
+    s = '+' + s;
+  }
   return /^\+[1-9]\d{7,14}$/.test(s) ? s : null;
 }
 
+export const PHONE_EXAMPLE = '+961 70 123 456';
+
 export function videoEmbed(lesson) {
+  if (lesson.stream_uid) {
+    if (lesson.stream_state === 'ready' && lesson.stream_hls) return { type: 'stream', src: lesson.stream_hls, poster: lesson.stream_thumbnail };
+    return { type: 'processing', state: lesson.stream_state };
+  }
   if (lesson.video_file) return { type: 'file', src: `/uploads/${lesson.video_file}` };
   const url = lesson.video_url;
   if (!url) return null;

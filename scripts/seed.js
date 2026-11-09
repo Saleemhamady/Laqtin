@@ -12,9 +12,9 @@ function user(name, email, role, phone) {
   return one('SELECT * FROM users WHERE id=?', lastInsertRowid);
 }
 
-user('Academy Admin', 'admin@laqtin.test', 'admin', null);
-const teacher = user('Layla Haddad', 'teacher@laqtin.test', 'teacher', '+971500000001');
-user('Omar Saeed', 'student@laqtin.test', 'student', '+971500000002');
+user('Academy Admin', 'admin@laqtine.test', 'admin', null);
+const teacher = user('Layla Haddad', 'teacher@laqtine.test', 'teacher', '+971500000001');
+user('Omar Saeed', 'student@laqtine.test', 'student', '+971500000002');
 
 if (!one('SELECT id FROM courses WHERE title=?', 'Python Basics')) {
   const { lastInsertRowid: courseId } = run(
@@ -48,6 +48,6 @@ if (!one('SELECT id FROM courses WHERE title=?', 'Python Basics')) {
 }
 
 console.log(`Seeded. Sign in with (password: password123):
-  admin@laqtin.test    – admin
-  teacher@laqtin.test  – teacher
-  student@laqtin.test  – student`);
+  admin@laqtine.test    – admin
+  teacher@laqtine.test  – teacher
+  student@laqtine.test  – student`);

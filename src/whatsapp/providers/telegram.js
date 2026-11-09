@@ -2,7 +2,7 @@
 //
 //  • One private chat between the academy bot and each student. Bots can't open
 //    chats, so the student taps a deep link (t.me/<bot>?start=<token>) once; that
-//    also securely links their Telegram to their Laqtin account.
+//    also securely links their Telegram to their Laqtine account.
 //  • Questions are native *quiz* polls: Telegram itself shows right/wrong and the
 //    teacher's explanation (first 200 characters) the moment the student taps.
 //  • "I watched it" is an inline button.

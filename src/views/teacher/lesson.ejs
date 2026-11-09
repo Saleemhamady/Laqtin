@@ -24,18 +24,68 @@
             <div class="field"><span class="label">Current video</span><%- include('../partials/player', { video }) %>
               <label class="small muted row" style="gap:6px; margin-top:8px"><input type="checkbox" name="remove_video" value="1"> Remove video</label></div>
           <% } %>
+          <% if (lesson.stream_uid && lesson.stream_state !== 'ready') { %>
+            <div class="alert <%= lesson.stream_state === 'error' ? 'error' : 'info' %>" data-stream-status="<%= lesson.id %>" data-state="<%= lesson.stream_state %>">
+              <%- icon(lesson.stream_state === 'error' ? 'alert' : 'clock') %>
+              <span data-stream-text><%= lesson.stream_state === 'error' ? 'Cloudflare couldn’t process this video. Please upload it again.' : lesson.stream_state === 'uploading' ? 'Waiting for the upload to finish…' : 'Cloudflare is preparing the video for streaming…' %></span>
+            </div>
+          <% } %>
           <div class="field-row" style="align-items:start">
-            <label class="dropzone" data-dropzone>
-              <input type="file" name="video" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v">
-              <%- icon('upload') %>
-              <strong data-file-label><%= lesson.video_file ? 'Replace video file' : 'Upload a video' %></strong>
-              <span class="hint">MP4 recommended · up to <%= maxUploadMb %> MB. Files under 16 MB are sent inside WhatsApp; larger ones as a link.</span>
-            </label>
+            <% if (streamEnabled) { %>
+              <label class="dropzone" data-dropzone data-stream-upload="<%= lesson.id %>">
+                <input type="file" accept="video/*,.mp4,.webm,.mov,.m4v,.mkv">
+                <%- icon('upload') %>
+                <strong data-file-label><%= lesson.stream_uid || lesson.video_file ? 'Replace video' : 'Upload a video' %></strong>
+                <span class="hint">Goes straight to Cloudflare Stream · up to 200 MB. Students get smooth playback that adapts to their connection.</span>
+                <div class="upload-progress" data-upload-progress hidden><span class="small" data-upload-text>Uploading…</span><div class="progress"><span style="width:0%"></span></div></div>
+              </label>
+            <% } else { %>
+              <label class="dropzone" data-dropzone>
+                <input type="file" name="video" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v">
+                <%- icon('upload') %>
+                <strong data-file-label><%= lesson.video_file ? 'Replace video file' : 'Upload a video' %></strong>
+                <span class="hint">MP4 recommended · up to <%= maxUploadMb %> MB. Files under 16 MB are sent inside WhatsApp; larger ones as a link.</span>
+              </label>
+            <% } %>
             <label class="field" style="margin:0"><span>…or paste a link</span><input type="url" name="video_url" value="<%= lesson.video_url || '' %>" placeholder="https://youtu.be/…"><span class="hint">YouTube, Vimeo or a direct .mp4 link.</span></label>
           </div>
         </div>
         <div class="card-foot" style="text-align:right"><button class="btn primary">Save</button></div>
       </form>
+
+      <% if (lesson.stream_uid && lesson.stream_state === 'ready') { %>
+        <div class="card section" id="subtitles">
+          <div class="card-head"><h2>Subtitles</h2><span class="small muted">Help students follow along, or watch on mute</span></div>
+          <% if (captions && captions.length) { %>
+            <ul class="list">
+              <% captions.forEach(function (c) { %>
+                <li>
+                  <span class="file-ico"><%- icon('chat') %></span>
+                  <div class="grow"><span class="title"><%= CAPTION_LANGS[c.language] || c.label || c.language %></span><span class="sub"><%= c.generated ? 'Generated automatically' : 'Uploaded' %><%= c.status && c.status !== 'ready' ? ' · ' + c.status : '' %></span></div>
+                  <form method="post" action="/teach/lessons/<%= lesson.id %>/captions/<%= c.language %>/delete" data-confirm="Remove these subtitles?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn ghost icon remove" aria-label="Remove"><%- icon('trash') %></button></form>
+                </li>
+              <% }) %>
+            </ul>
+          <% } else if (captions === null) { %>
+            <div class="card-body small muted" style="padding-bottom:0">Couldn’t load subtitles from Cloudflare right now.</div>
+          <% } %>
+          <div class="card-foot">
+            <div class="field-row" style="align-items:end">
+              <form method="post" action="/teach/lessons/<%= lesson.id %>/captions/generate" class="row" style="gap:8px; flex-wrap:nowrap">
+                <input type="hidden" name="_csrf" value="<%= csrf %>">
+                <select name="lang" style="width:auto"><% Object.entries(CAPTION_LANGS).forEach(function ([k, v]) { %><option value="<%= k %>" <%= k === 'en' ? 'selected' : '' %>><%= v %></option><% }) %></select>
+                <button class="btn secondary">Generate automatically</button>
+              </form>
+              <form method="post" action="/teach/lessons/<%= lesson.id %>/captions?_csrf=<%= encodeURIComponent(csrf) %>" enctype="multipart/form-data" class="row" style="gap:8px; flex-wrap:nowrap">
+                <select name="lang" style="width:auto"><% Object.entries(CAPTION_LANGS).forEach(function ([k, v]) { %><option value="<%= k %>"><%= v %></option><% }) %></select>
+                <input type="file" name="vtt" accept=".vtt" style="height:auto; padding:6px; min-width:0">
+                <button class="btn secondary">Upload .vtt</button>
+              </form>
+            </div>
+            <p class="hint" style="margin:10px 0 0">Automatic subtitles may not support every language — if one fails, upload a .vtt file made with any subtitle tool.</p>
+          </div>
+        </div>
+      <% } %>
 
       <!-- 2. Materials -->
       <div class="card section" id="materials">

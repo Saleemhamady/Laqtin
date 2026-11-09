@@ -23,6 +23,7 @@ const firstUserRole = () => (one('SELECT COUNT(*) AS n FROM users').n === 0 ? 'a
 
 function signIn(req, user) {
   req.session.uid = user.id;
+  req.session.viaLink = false;
   req.session.csrf = null; // rotate
 }
 
@@ -48,7 +49,7 @@ r.use((req, res, next) => {
 });
 
 r.get('/login', (req, res) => {
-  if (req.user) return res.redirect('/');
+  if (req.user && !req.session.viaLink) return res.redirect('/');
   res.render('auth/login', { title: 'Sign in', values: {} });
 });
 
@@ -80,7 +81,7 @@ r.post('/signup', authLimiter, (req, res) => {
   if (!values.name) error = 'Please enter your name.';
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(values.email)) error = 'Please enter a valid email address.';
   else if (password.length < 8) error = 'Your password needs at least 8 characters.';
-  else if (values.phone && !phone) error = 'Enter your WhatsApp number with the country code, e.g. +971 50 123 4567.';
+  else if (values.phone && !phone) error = 'That doesn’t look like a valid WhatsApp number. Try e.g. 70 123 456 or +961 70 123 456.';
   else if (values.role === 'student' && !phone) error = 'Your WhatsApp number is needed so we can send you lessons.';
   else if (one('SELECT id FROM users WHERE email=?', values.email)) error = 'An account with this email already exists. Try signing in.';
   if (error) return res.status(400).render('auth/signup', { title: 'Create account', values, error });
@@ -117,7 +118,7 @@ r.post('/forgot', authLimiter, async (req, res, next) => {
       const link = `${config.baseUrl}/reset/${token}`;
       await sendMail({
         to: user.email,
-        subject: 'Reset your Laqtin password',
+        subject: 'Reset your Laqtine password',
         text: `Hi ${user.name},\n\nUse this link to choose a new password (valid for 1 hour):\n${link}\n\nIf you didn't ask for this, you can ignore this email.`,
       });
     }
@@ -154,6 +155,12 @@ r.post('/reset/:token', authLimiter, (req, res) => {
 
 r.get('/auth/:provider', authLimiter, (req, res) => {
   if (!isEnabled(req.params.provider)) return res.redirect('/login');
+  // A session opened from a message link must not attach new logins to the account:
+  // treat it as signed out so the provider signs the person in on their own.
+  if (req.session.viaLink) {
+    req.session.uid = null;
+    req.session.viaLink = false;
+  }
   res.redirect(authorizationUrl(req.params.provider, req.session));
 });
 
@@ -173,7 +180,7 @@ r.get('/auth/:provider/callback', async (req, res, next) => {
 
     if (identity) {
       if (req.user && req.user.id !== identity.user_id) {
-        req.flash('error', `That ${label} account is already connected to another Laqtin account.`);
+        req.flash('error', `That ${label} account is already connected to another Laqtine account.`);
         return res.redirect('/profile');
       }
       const user = one('SELECT * FROM users WHERE id=?', identity.user_id);
@@ -193,7 +200,7 @@ r.get('/auth/:provider/callback', async (req, res, next) => {
       return res.redirect('/login');
     }
     if (!user) {
-      const email = profile.email || `${name}-${profile.subject}@users.noreply.laqtin`;
+      const email = profile.email || `${name}-${profile.subject}@users.noreply.laqtine`;
       const { lastInsertRowid } = run(
         'INSERT INTO users (name, email, role, avatar_url, onboarded) VALUES (?,?,?,?,0)',
         profile.name || email.split('@')[0], email, firstUserRole() || 'student', profile.avatar
@@ -227,7 +234,7 @@ r.post('/welcome', requireUser, (req, res) => {
   const phone = values.phone ? normalizePhone(values.phone) : null;
   let error;
   if (!values.name) error = 'Please enter your name.';
-  else if (values.phone && !phone) error = 'Enter your WhatsApp number with the country code, e.g. +971 50 123 4567.';
+  else if (values.phone && !phone) error = 'That doesn’t look like a valid WhatsApp number. Try e.g. 70 123 456 or +961 70 123 456.';
   else if (values.role === 'student' && u.role !== 'admin' && !phone) error = 'Your WhatsApp number is needed so we can send you lessons.';
   if (error) return res.status(400).render('auth/welcome', { title: 'Welcome', values, error, isAdmin: u.role === 'admin' });
   const role = u.role === 'admin' ? 'admin' : values.role;
@@ -237,13 +244,21 @@ r.post('/welcome', requireUser, (req, res) => {
 
 // ---------- profile ----------
 
+/** Account changes need a real sign-in, not a session opened from a message link. */
+function requireFullLogin(req, res, next) {
+  if (!req.session.viaLink) return next();
+  req.session.returnTo = '/profile';
+  req.flash('error', 'For your security, please sign in to change account settings.');
+  res.redirect('/login');
+}
+
 r.get('/profile', requireUser, (req, res) => {
   const identities = all('SELECT provider, email, created_at FROM user_identities WHERE user_id=?', req.user.id);
   const hasPassword = Boolean(one('SELECT password_hash FROM users WHERE id=?', req.user.id).password_hash);
   res.render('profile', { title: 'Profile', identities, hasPassword, values: req.user });
 });
 
-r.post('/profile', requireUser, (req, res) => {
+r.post('/profile', requireUser, requireFullLogin, (req, res) => {
   const name = String(req.body.name || '').trim();
   const rawPhone = String(req.body.phone || '').trim();
   const phone = rawPhone ? normalizePhone(rawPhone) : null;
@@ -251,7 +266,7 @@ r.post('/profile', requireUser, (req, res) => {
   const hasPassword = Boolean(one('SELECT password_hash FROM users WHERE id=?', req.user.id).password_hash);
   const fail = (error) => res.status(400).render('profile', { title: 'Profile', identities, hasPassword, values: { ...req.user, name, phone: rawPhone }, error });
   if (!name) return fail('Please enter your name.');
-  if (rawPhone && !phone) return fail('Enter your WhatsApp number with the country code, e.g. +971 50 123 4567.');
+  if (rawPhone && !phone) return fail('That doesn’t look like a valid WhatsApp number. Try e.g. 70 123 456 or +961 70 123 456.');
   run('UPDATE users SET name=?, phone=? WHERE id=?', name, phone, req.user.id);
   const pw = String(req.body.new_password || '');
   if (pw) {
@@ -262,7 +277,7 @@ r.post('/profile', requireUser, (req, res) => {
   res.redirect('/profile');
 });
 
-r.post('/profile/delete', requireUser, (req, res) => {
+r.post('/profile/delete', requireUser, requireFullLogin, (req, res) => {
   const owned = one('SELECT COUNT(*) AS n FROM courses WHERE teacher_id=?', req.user.id).n;
   if (owned) {
     req.flash('error', 'You still own courses. Delete them or ask an admin to transfer them first.');
@@ -277,7 +292,7 @@ r.post('/profile/delete', requireUser, (req, res) => {
   res.redirect('/?deleted=1');
 });
 
-r.post('/profile/identities/:provider/remove', requireUser, (req, res) => {
+r.post('/profile/identities/:provider/remove', requireUser, requireFullLogin, (req, res) => {
   const u = one('SELECT password_hash FROM users WHERE id=?', req.user.id);
   const count = one('SELECT COUNT(*) AS n FROM user_identities WHERE user_id=?', req.user.id).n;
   if (!u.password_hash && count <= 1) {
