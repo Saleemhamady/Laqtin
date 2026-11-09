@@ -4,7 +4,14 @@ Read this before working on the project. It records decisions already made with 
 
 ## Connecting to Cloudflare
 
-When the user asks to connect to / set up Cloudflare, do this (from Cloudflare's official agent setup, https://developers.cloudflare.com/agent-setup/prompt.md):
+**Status:** connected. Use the cloud environment **laqtine** (personal; network: api.cloudflare.com, github.com, package registries; its setup script runs `npm ci` and installs the Cloudflare plugin). A Cloudflare API token is saved on that environment as a network secret for `api.cloudflare.com` — just call the API with curl; the proxy adds the token. Never ask for the token in chat.
+
+- Account: `f8de1c0fc217389c302f9304f8f6b598` (Keef.education@gmail.com's Account)
+- Zone laqtine.com: `5d705b3f030d496324f5efb7db779c2b` (active, Free plan, SSL mode Full)
+- Token can: DNS edit, zone read, email routing. **Stream: not yet** (user must subscribe to Stream and add Account → Stream → Edit to the token).
+- The plugin's MCP server (mcp.cloudflare.com) can't complete its OAuth sign-in from a cloud session — use the API token instead.
+
+If starting from scratch in another environment, do this (from Cloudflare's official agent setup, https://developers.cloudflare.com/agent-setup/prompt.md):
 
 1. Run these two commands yourself (cloud session containers are temporary, so the plugin must be reinstalled each new session):
    ```bash
